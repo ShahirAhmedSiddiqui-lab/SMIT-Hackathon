@@ -1,0 +1,33 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Announcements } from "./announcements";
+import { apiRequest } from "@/lib/api-client";
+
+type Summary = { role: "admin" | "hr" | "employee"; date: string; headcount?: number; attendance?: { present: number; late: number; halfDay: number; missingCheckout: number; absent: number; onLeave: number }; approvals?: { leave: number; corrections: number }; payroll?: { month: string; status: string; net: number } | null; attendanceToday?: { status: string; checkIn: string } | null; pendingLeave?: number; payslip?: { month: string; netPay: number } | null };
+
+function AttendanceChart({ attendance }: { attendance: NonNullable<Summary["attendance"]> }) {
+  const data = [{ label: "Present", value: attendance.present, fill: "#0d9f8d" }, { label: "Late", value: attendance.late, fill: "#d99423" }, { label: "Half day", value: attendance.halfDay, fill: "#7167d9" }, { label: "Absent", value: attendance.absent, fill: "#d85b5b" }, { label: "On leave", value: attendance.onLeave, fill: "#4d9fe8" }];
+  return <section className="panel chart-panel"><div className="panel-title"><div><span className="panel-kicker">TODAY</span><h2>Attendance overview</h2></div><span className="status-pill">Live data</span></div><div className="chart-shell"><ResponsiveContainer width="100%" height={190}><BarChart data={data} margin={{ top: 8, right: 8, left: -18, bottom: 0 }}><CartesianGrid stroke="#e5ebf3" vertical={false} /><XAxis dataKey="label" tick={{ fontSize: 10, fill: "#607594" }} tickLine={false} axisLine={false} /><YAxis allowDecimals={false} tick={{ fontSize: 10, fill: "#607594" }} tickLine={false} axisLine={false} /><Tooltip cursor={{ fill: "#f3f7fc" }} contentStyle={{ border: "1px solid #e5ebf3", borderRadius: 8, fontSize: 12 }} /><Bar dataKey="value" radius={[5, 5, 0, 0]} fill="#0d9f8d" /></BarChart></ResponsiveContainer></div></section>;
+}
+
+export function LiveDashboard({ token, role, onNavigate }: { token: string; role: Summary["role"]; onNavigate: (page: string) => void }) {
+  const [summary, setSummary] = useState<Summary | null>(null);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    const controller = new AbortController();
+    apiRequest<Summary>("/api/analytics/summary", { signal: controller.signal }, token)
+      .then(data => { setSummary(data); setLoading(false); })
+      .catch(reason => { if (!controller.signal.aborted && !(reason instanceof DOMException && reason.name === "AbortError")) { setError(reason instanceof Error ? reason.message : "Dashboard unavailable"); setLoading(false); } });
+    return () => controller.abort();
+  }, [token]);
+  if (loading) return <section className="panel module-panel skeleton-panel" aria-label="Loading dashboard"><div className="skeleton skeleton-kicker" /><div className="skeleton skeleton-title" /><div className="skeleton skeleton-copy" /><div className="skeleton-grid"><div className="skeleton skeleton-card" /><div className="skeleton skeleton-card" /><div className="skeleton skeleton-card" /></div><div className="skeleton skeleton-block" /></section>;
+  if (error || !summary) return <section className="panel module-panel"><div className="form-error" role="alert">{error || "Dashboard unavailable"}</div></section>;
+  if (role === "employee") return <><div className="stat-grid"><div className="stat-card"><span className="stat-mark teal">◉</span><div><strong>{summary.attendanceToday?.status ?? "No check-in"}</strong><small>Attendance today</small></div></div><div className="stat-card"><span className="stat-mark aqua">◇</span><div><strong>{summary.pendingLeave ?? 0}</strong><small>Pending leave requests</small></div></div><div className="stat-card"><span className="stat-mark violet">▤</span><div><strong>{summary.payslip ? summary.payslip.netPay.toLocaleString() : "No payslip"}</strong><small>Latest finalized payslip</small></div></div></div><section className="panel hero-panel"><div className="panel-kicker">MY WORKSPACE</div><h2>Your people records</h2><p>Review attendance today, leave, and published payslips.</p><button className="button button-dark" onClick={() => onNavigate("Attendance")}>Open attendance →</button></section><Announcements token={token} role={role} /></>;
+  const attendance = summary.attendance;
+  const approvals = (summary.approvals?.leave ?? 0) + (summary.approvals?.corrections ?? 0);
+  const isHr = role === "hr";
+  return <><div className="stat-grid"><div className="stat-card"><span className="stat-mark teal">◉</span><div><strong>{summary.headcount ?? 0}</strong><small>{isHr ? "People in your workspace" : "Active employees"}</small></div></div><div className="stat-card"><span className="stat-mark aqua">◌</span><div><strong>{(attendance?.present ?? 0) + (attendance?.late ?? 0)}</strong><small>{isHr ? "Present or late today" : "Present workforce today"}</small></div></div><div className="stat-card"><span className="stat-mark violet">◇</span><div><strong>{approvals}</strong><small>{isHr ? "Requests needing review" : "Pending people requests"}</small></div></div></div><div className="grid-main"><section className="panel hero-panel"><div className="panel-kicker">TODAY · {summary.date}</div><h2>{isHr ? "Keep the people day moving." : "People operations at a glance"}</h2><p>{attendance?.late ?? 0} late · {attendance?.halfDay ?? 0} half day · {attendance?.missingCheckout ?? 0} missing checkout · {attendance?.absent ?? 0} absent · {attendance?.onLeave ?? 0} on leave</p><button className="button button-dark" onClick={() => onNavigate(isHr ? "Employees" : "Attendance")}>{isHr ? "Open people directory →" : "Review attendance →"}</button></section><section className="panel checklist"><div className="panel-title"><h2>{isHr ? "Your next decisions" : "Needs review"}</h2><span className="status-pill">Live data</span></div><div className="check-row"><span>Leave requests</span><strong>{summary.approvals?.leave ?? 0}</strong></div><div className="check-row"><span>Attendance corrections</span><strong>{summary.approvals?.corrections ?? 0}</strong></div><div className="check-row"><span>Payroll</span><strong>{summary.payroll ? `${summary.payroll.month} · ${summary.payroll.status}` : "No run this month"}</strong></div><button className="button button-dark" onClick={() => onNavigate(isHr ? "Attendance" : "Leave")}>{isHr ? "Review attendance →" : "Open leave inbox →"}</button></section></div>{attendance && <AttendanceChart attendance={attendance} />}<Announcements token={token} role={role} /></>;
+}
