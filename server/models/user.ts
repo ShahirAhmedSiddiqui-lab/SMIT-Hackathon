@@ -1,0 +1,27 @@
+import mongoose, { Schema, Types } from "mongoose";
+
+export type UserRole = "admin" | "hr" | "employee";
+
+const userSchema = new Schema(
+  {
+    organizationId: { type: Types.ObjectId, ref: "Organization", required: true },
+    name: { type: String, required: true, trim: true, maxlength: 120 },
+    email: { type: String, required: true, unique: true, lowercase: true, trim: true },
+    passwordHash: { type: String, required: true, select: false },
+    role: { type: String, enum: ["admin", "hr", "employee"], required: true },
+    active: { type: Boolean, default: true },
+    mustChangePassword: { type: Boolean, default: false },
+    tokenVersion: { type: Number, default: 0 },
+    employeeId: { type: Types.ObjectId, ref: "Employee", default: null },
+    profilePhoto: {
+      data: { type: Buffer, select: false },
+      mimeType: { type: String, enum: ["image/jpeg", "image/png"], select: false },
+    },
+  },
+  { timestamps: true },
+);
+
+userSchema.index({ organizationId: 1, role: 1, active: 1 });
+userSchema.index({ organizationId: 1, role: 1 }, { unique: true, partialFilterExpression: { role: "admin" }, name: "organization_admin_unique" });
+
+export const User = mongoose.models.User ?? mongoose.model("User", userSchema);

@@ -1,69 +1,150 @@
-import Image from "next/image";
+"use client";
+
+import type { FormEvent, ReactNode } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { Controller, useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { ModulePage } from "./module-page";
+import { LiveDashboard } from "./live-dashboard";
+import { HrAccounts } from "./hr-accounts";
+import { AccountAdmin } from "./account-admin";
+import { EmployeeEditor } from "./employee-editor";
+import { PasswordField } from "./password-field";
+import { EmployeeTable } from "@/components/employee-table";
+import { adminSignupSchema, loginSchema, passwordChangeSchema, type AdminSignupValues, type LoginValues, type PasswordChangeValues } from "@/lib/auth-schemas";
+import { clearSessionSnapshot, readSessionSnapshot, writeSessionSnapshot } from "@/lib/session-cache";
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? (typeof window === "undefined" ? "http://localhost:5000" : `http://${window.location.hostname}:5000`);
+type Role = "admin" | "hr" | "employee";
+type User = { id: string; name: string; email: string; role: Role; mustChangePassword: boolean };
+type Organization = { _id?: string; id?: string; companyName: string; officeStart: string; graceMinutes: number; weekendDays?: number[]; departments?: string[]; designations?: string[]; leaveQuotas?: { annual?: number; sick?: number; casual?: number }; officeLocation?: { address?: string; latitude?: number | null; longitude?: number | null; radiusMeters?: number } };
+type Employee = { id: string; employeeCode: string; name: string; email: string; phone?: string; address?: string; department?: string; designation: string; employmentType: string; joinDate: string; exitDate?: string | null; basicSalary: number; status: string };
+type ViewState = "role" | "admin-access" | "setup" | "login" | "password" | "workspace";
+
+const roleLabels: Record<Role, string> = { admin: "Admin", hr: "HR", employee: "Employee" };
+const navItems = ["Dashboard", "Organization", "Employees", "Attendance", "Leave", "Payroll", "Analytics", "AI Assistant", "Audit Logs", "Settings"];
+
+class ApiRequestError extends Error {
+  constructor(message: string, readonly status: number) { super(message); }
+}
+
+const isInvalidSession = (error: unknown) => error instanceof ApiRequestError && (error.status === 401 || error.status === 403);
+
+async function api<T>(path: string, options: RequestInit = {}, token?: string): Promise<T> {
+  try {
+    const response = await fetch(`${API_URL}${path}`, { ...options, headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}), ...(options.headers ?? {}) } });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) throw new ApiRequestError(payload.error?.message ?? "Request failed", response.status);
+    return payload.data as T;
+  } catch (error) {
+    if (error instanceof TypeError) throw new Error("Cannot reach the API server. Run npm run dev:all and try again.");
+    throw error;
+  }
+}
+
+function BrandMark() { return <div className="brand"><span className="brand-mark"><i /><b /><em /></span><span><strong>Nexora</strong><small>People operations, clearly.</small></span></div>; }
+
+function AuthFrame({ children, eyebrow, title, copy }: { children: ReactNode; eyebrow: string; title: string; copy: string }) {
+  return <main className="auth-frame"><section className="auth-card"><div className="auth-form"><BrandMark /><div className="eyebrow">{eyebrow}</div><h1>{title}</h1><p className="muted">{copy}</p>{children}</div><div className="auth-aside"><div className="aside-orbit" /><div className="aside-copy"><span className="aside-kicker">NEXORA / WORKSPACE</span><h2>Make the people work visible.</h2><p>One calm place for setup, attendance, leave, and the decisions behind them.</p><div className="auth-rules"><strong>Access rules</strong><span>Admin creates the workspace and HR access.</span><span>Admin and HR can create Employee accounts.</span><span>Employees cannot create workspaces or accounts.</span><span>Temporary-password accounts must change their password.</span><span>Every account stays inside its selected workspace.</span></div></div><div className="aside-foot">Starts empty. Built around your team.</div></div></section></main>;
+}
+
+function RoleChooserV2({ setupRequired, onContinue }: { setupRequired: boolean; onContinue: (role: Role) => void }) {
+  const [error, setError] = useState("");
+  const choose = (role: Role) => { if (setupRequired && role !== "admin") { setError("Ask an Admin to set up the workspace before using this role."); return; } setError(""); onContinue(role); };
+  return <AuthFrame eyebrow="WELCOME TO NEXORA" title="Who are you?" copy="Choose your role to continue to the right workspace."><div className="role-chooser">{(["admin", "hr", "employee"] as Role[]).map(role => <button key={role} type="button" className="role-option" onClick={() => choose(role)}><span className="role-option-icon">{role === "admin" ? "A" : role === "hr" ? "H" : "E"}</span><span><strong>{roleLabels[role]}</strong><small>{role === "admin" ? "Signup/Signin to your dashboard" : setupRequired ? "Ask an Admin to set up the workspace" : "Sign in to your dashboard"}</small></span><span aria-hidden="true">→</span></button>)}</div>{error && <div className="form-error" role="alert">{error}</div>}</AuthFrame>;
+}
+
+function AdminAccess({ notice, onSignIn, onSignUp, onBack }: { setupRequired: boolean; notice: string; onSignIn: () => void; onSignUp: () => void; onBack: () => void }) {
+  return <AuthFrame eyebrow="ADMIN ACCESS" title="Your Nexora dashboard" copy="Choose how you want to continue as a workspace Admin."><div className="admin-access-choice"><button type="button" className="button button-primary" onClick={onSignIn}>Sign in</button><button type="button" className="button button-quiet" onClick={onSignUp}>Sign up</button><div className="form-note">Create a separate company workspace and Admin account, or sign in if you already have one.</div>{notice && <div className="success-message" role="status">{notice}</div>}<button type="button" className="button button-quiet login-inline-back" onClick={onBack}>Go Back</button></div></AuthFrame>;
+}
+
+function AdminSignup({ onComplete, onBack }: { onComplete: (token: string, user: User, organization: Organization) => void; onBack: () => void }) {
+  const [error, setError] = useState("");
+  const { register, control, handleSubmit, formState: { errors, isSubmitting } } = useForm<AdminSignupValues>({ resolver: zodResolver(adminSignupSchema), defaultValues: { companyName: "", adminName: "", adminEmail: "", adminPassword: "" } });
+  const submit = async (form: AdminSignupValues) => { setError(""); try { const data = await api<{ token: string; user: User; organization: Organization }>("/api/setup", { method: "POST", body: JSON.stringify(form) }); onComplete(data.token, data.user, data.organization); } catch (err) { setError(err instanceof Error ? err.message : "Setup could not be completed"); } };
+  return <AuthFrame eyebrow="ADMIN SIGNUP" title="Create your workspace" copy="Create the company workspace and the only initial Admin account. HR and Employee accounts are created after setup."><form onSubmit={handleSubmit(submit)} className="form-stack"><label>Company name<input {...register("companyName")} placeholder="e.g. Nexora Technologies" />{errors.companyName && <small className="field-error">{errors.companyName.message}</small>}</label><label>Admin name<input {...register("adminName")} placeholder="Your full name" />{errors.adminName && <small className="field-error">{errors.adminName.message}</small>}</label><label>Admin email<input type="email" {...register("adminEmail")} placeholder="you@company.com" />{errors.adminEmail && <small className="field-error">{errors.adminEmail.message}</small>}</label><Controller name="adminPassword" control={control} render={({ field }) => <PasswordField label="Admin password" value={field.value} onChange={field.onChange} placeholder="At least 8 characters" />} />{errors.adminPassword && <small className="field-error">{errors.adminPassword.message}</small>}{error && <div className="form-error" role="alert">{error}</div>}<button className="button button-primary" disabled={isSubmitting}>{isSubmitting ? "Creating…" : "Create workspace"}</button><button type="button" className="button button-quiet login-inline-back" onClick={onBack}>← Go Back</button></form></AuthFrame>;
+}
+
+// Kept temporarily for compatibility with the existing role-flow implementation.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function LegacyLoginForm({ role, onComplete }: { role: Role; onComplete: (token: string, user: User, organization: Organization) => void }) {
+  const [form, setForm] = useState({ email: "", password: "" }); const [error, setError] = useState(""); const [busy, setBusy] = useState(false);
+  const submit = async (event: FormEvent) => { event.preventDefault(); setBusy(true); setError(""); try { const data = await api<{ token: string; user: User; organization: Organization }>("/api/auth/login", { method: "POST", body: JSON.stringify({ ...form, role }) }); onComplete(data.token, data.user, data.organization); } catch (err) { setError(err instanceof Error ? err.message : "Sign in failed"); } finally { setBusy(false); } };
+  return <AuthFrame eyebrow="WELCOME BACK" title="Sign in to your workspace" copy="Use your Nexora account to continue to the right people workspace."><form onSubmit={submit} className="form-stack"><label>Email address<input required type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} placeholder="you@company.com" /></label><label>Password<input required type="password" value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} placeholder="Your password" /></label>{error && <div className="form-error" role="alert">{error}</div>}<button className="button button-primary" disabled={busy}>{busy ? "Signing in…" : "Sign in"}</button></form></AuthFrame>;
+}
+
+function LoginForm({ role, onComplete, onBack }: { role: Role; onComplete: (token: string, user: User, organization: Organization) => void; onBack: () => void }) {
+  const [error, setError] = useState("");
+  const { register, control, handleSubmit, formState: { errors, isSubmitting } } = useForm<LoginValues>({ resolver: zodResolver(loginSchema), defaultValues: { email: "", password: "" } });
+  const submit = async (form: LoginValues) => { setError(""); try { const data = await api<{ token: string; user: User; organization: Organization }>("/api/auth/login", { method: "POST", body: JSON.stringify({ ...form, role }) }); onComplete(data.token, data.user, data.organization); } catch (err) { setError(err instanceof Error ? err.message : "Sign in failed"); } };
+  return <AuthFrame eyebrow="WELCOME BACK" title="Sign in to your workspace" copy="Use your Nexora account to continue to the right people workspace."><form onSubmit={handleSubmit(submit)} className="form-stack"><label>Email address<input type="email" {...register("email")} placeholder="you@company.com" />{errors.email && <small className="field-error">{errors.email.message}</small>}</label><Controller name="password" control={control} render={({ field }) => <PasswordField label="Password" value={field.value} onChange={field.onChange} placeholder="Your password" />} />{errors.password && <small className="field-error">{errors.password.message}</small>}{error && <div className="form-error" role="alert">{error}</div>}<button className="button button-primary" disabled={isSubmitting}>{isSubmitting ? "Signing in…" : "Sign in"}</button><button type="button" className="button button-quiet login-inline-back" onClick={onBack}><span aria-hidden="true">←</span> Go Back</button></form></AuthFrame>;
+}
+
+function PasswordChangeForm({ token, user, onComplete }: { token: string; user: User; onComplete: (token: string, user: User) => void }) {
+  const [error, setError] = useState("");
+  const { control, handleSubmit, formState: { errors, isSubmitting } } = useForm<PasswordChangeValues>({ resolver: zodResolver(passwordChangeSchema), defaultValues: { currentPassword: "", newPassword: "" } });
+  const submit = async (form: PasswordChangeValues) => { setError(""); try { const data = await api<{ token: string; user: User }>("/api/auth/change-password", { method: "POST", body: JSON.stringify(form) }, token); onComplete(data.token, data.user); } catch (err) { setError(err instanceof Error ? err.message : "Password could not be changed"); } };
+  return <AuthFrame eyebrow="SECURE YOUR ACCESS" title={`Welcome, ${user.name.split(" ")[0]}`} copy="Choose a personal password before entering the Nexora workspace."><form onSubmit={handleSubmit(submit)} className="form-stack"><Controller name="currentPassword" control={control} render={({ field }) => <PasswordField label="Temporary password" value={field.value} onChange={field.onChange} />} />{errors.currentPassword && <small className="field-error">{errors.currentPassword.message}</small>}<Controller name="newPassword" control={control} render={({ field }) => <PasswordField label="New password" value={field.value} onChange={field.onChange} placeholder="At least 8 characters" />} />{errors.newPassword && <small className="field-error">{errors.newPassword.message}</small>}{error && <div className="form-error" role="alert">{error}</div>}<button className="button button-primary" disabled={isSubmitting}>{isSubmitting ? "Updating…" : "Set my password"}</button></form></AuthFrame>;
+}
+
+function EmployeeDirectory({ token, user }: { token: string; user: User }) {
+  const [employees, setEmployees] = useState<Employee[]>([]); const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null); const [total, setTotal] = useState(0); const [search, setSearch] = useState(""); const [error, setError] = useState(""); const [message, setMessage] = useState(""); const [busy, setBusy] = useState(false);
+  const [form, setForm] = useState({ employeeCode: "", name: "", email: "", temporaryPassword: "", designation: "", department: "", joinDate: new Date().toISOString().slice(0, 10), exitDate: "", basicSalary: "", phone: "", address: "" });
+  const canCreate = user.role === "admin" || user.role === "hr";
+  const load = async (query = search) => { try { const data = await api<{ employees: Employee[]; total: number }>(`/api/employees?search=${encodeURIComponent(query)}`, {}, token); setEmployees(data.employees); setTotal(data.total); } catch (err) { setError(err instanceof Error ? err.message : "Employees could not be loaded"); } };
+  useEffect(() => { let cancelled = false; api<{ employees: Employee[]; total: number }>("/api/employees", {}, token).then(data => { if (!cancelled) { setEmployees(data.employees); setTotal(data.total); } }).catch(err => { if (!cancelled) setError(err instanceof Error ? err.message : "Employees could not be loaded"); }); return () => { cancelled = true; }; }, [token]);
+  const submit = async (event: FormEvent) => { event.preventDefault(); setBusy(true); setError(""); setMessage(""); try { await api("/api/employees", { method: "POST", body: JSON.stringify({ ...form, basicSalary: Number(form.basicSalary) }) }, token); setForm({ ...form, employeeCode: "", name: "", email: "", temporaryPassword: "", designation: "", department: "", basicSalary: "", phone: "", address: "" }); setMessage("Employee created. Share the temporary password securely."); await load(); } catch (err) { setError(err instanceof Error ? err.message : "Employee could not be created"); } finally { setBusy(false); } };
+  return <div className="grid-main"><section className="panel"><div className="panel-title"><div><span className="panel-kicker">PEOPLE DIRECTORY</span><h2>{user.role === "employee" ? "My employee profile" : "Employees"}</h2></div><span className="status-pill">{total} record{total === 1 ? "" : "s"}</span></div>{user.role !== "employee" && <div className="search-row"><input value={search} onChange={e => setSearch(e.target.value)} onKeyDown={e => { if (e.key === "Enter") void load(); }} placeholder="Search name, code, email" /><button className="button button-dark" onClick={() => void load()}>Search</button></div>}{error && <div className="form-error" role="alert">{error}</div>}{message && <div className="success-message" role="status">{message}</div>}<EmployeeTable employees={employees} canEdit={user.role !== "admin"} onEdit={setSelectedEmployee} />{employees.length === 0 && !error && <div className="empty-copy">No employee records yet. Create the first profile to begin the people journey.</div>}</section>{selectedEmployee && user.role !== "admin" && <EmployeeEditor key={selectedEmployee.id} token={token} role={user.role} employee={selectedEmployee} onClose={() => setSelectedEmployee(null)} onSaved={() => { setSelectedEmployee(null); void load(); }} />}{canCreate && <section className="panel"><div className="panel-title"><div><span className="panel-kicker">NEW PROFILE</span><h2>Register employee</h2></div></div><p className="muted">Creates the employee profile and login together. First sign-in requires a password change.</p><form className="form-stack compact" onSubmit={submit}><label>Employee code<input required value={form.employeeCode} onChange={e => setForm({ ...form, employeeCode: e.target.value })} placeholder="EMP-001" /></label><label>Full name<input required value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} /></label><label>Email<input required type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} /></label><PasswordField label="Temporary password" value={form.temporaryPassword} onChange={temporaryPassword => setForm({ ...form, temporaryPassword })} /><label>Designation<input required value={form.designation} onChange={e => setForm({ ...form, designation: e.target.value })} placeholder="e.g. Product Designer" /></label><label>Department<input value={form.department} onChange={e => setForm({ ...form, department: e.target.value })} placeholder="Optional" /></label><label>Join date<input required type="date" value={form.joinDate} onChange={e => setForm({ ...form, joinDate: e.target.value })} /></label><label>Exit date (optional)<input type="date" value={form.exitDate} min={form.joinDate} onChange={e => setForm({ ...form, exitDate: e.target.value })} /></label><label>Basic salary<input required min="1" type="number" value={form.basicSalary} onChange={e => setForm({ ...form, basicSalary: e.target.value })} /></label><label>Phone<input value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} /></label><label>Address<input value={form.address} onChange={e => setForm({ ...form, address: e.target.value })} /></label><button className="button button-primary" disabled={busy}>{busy ? "Creating…" : "Create employee"}</button></form></section>}</div>;
+}
+
+function Workspace({ token, user, initialOrganization, onLogout }: { token: string; user: User; initialOrganization: Organization; onLogout: () => void }) {
+  const [organization, setOrganization] = useState(initialOrganization); const [active, setActive] = useState("Dashboard"); const [sectionRestored, setSectionRestored] = useState(false); const [message, setMessage] = useState(""); const [busy, setBusy] = useState(false); const [todayLabel, setTodayLabel] = useState("Today");
+  const [hrForm, setHrForm] = useState({ name: "", email: "", temporaryPassword: "" }); const [settings, setSettings] = useState({ officeStart: String(initialOrganization.officeStart ?? "09:00"), graceMinutes: String(initialOrganization.graceMinutes ?? 15), address: String(initialOrganization.officeLocation?.address ?? ""), radiusMeters: String(initialOrganization.officeLocation?.radiusMeters ?? 150), latitude: initialOrganization.officeLocation?.latitude == null ? "" : String(initialOrganization.officeLocation.latitude), longitude: initialOrganization.officeLocation?.longitude == null ? "" : String(initialOrganization.officeLocation.longitude), weekendDays: initialOrganization.weekendDays ?? [0, 6], departments: (initialOrganization.departments ?? []).join(", "), designations: (initialOrganization.designations ?? []).join(", "), annualQuota: String(initialOrganization.leaveQuotas?.annual ?? 14), sickQuota: String(initialOrganization.leaveQuotas?.sick ?? 8), casualQuota: String(initialOrganization.leaveQuotas?.casual ?? 10) });
+  const isAdmin = user.role === "admin";
+  const saveSettings = async (event: FormEvent) => { event.preventDefault(); setBusy(true); setMessage(""); try { const next = await api<Organization>("/api/organization", { method: "PATCH", body: JSON.stringify({ officeStart: settings.officeStart, graceMinutes: Number(settings.graceMinutes), weekendDays: settings.weekendDays, departments: settings.departments.split(",").map(value => value.trim()).filter(Boolean), designations: settings.designations.split(",").map(value => value.trim()).filter(Boolean), leaveQuotas: { annual: Number(settings.annualQuota), sick: Number(settings.sickQuota), casual: Number(settings.casualQuota) }, officeLocation: { address: settings.address, radiusMeters: Number(settings.radiusMeters), latitude: settings.latitude === "" ? null : Number(settings.latitude), longitude: settings.longitude === "" ? null : Number(settings.longitude) } }) }, token); setOrganization(next); setMessage("Organization settings saved."); } catch (err) { setMessage(err instanceof Error ? err.message : "Could not save settings"); } finally { setBusy(false); } };
+  const createHr = async (event: FormEvent) => { event.preventDefault(); setBusy(true); setMessage(""); try { await api("/api/users/hr", { method: "POST", body: JSON.stringify(hrForm) }, token); setHrForm({ name: "", email: "", temporaryPassword: "" }); setMessage("HR login created. Share the temporary password securely."); window.dispatchEvent(new Event("nexora-hr-created")); } catch (err) { setMessage(err instanceof Error ? err.message : "Could not create HR login"); } finally { setBusy(false); } };
+  // Restore navigation after hydration so server and client markup stay identical.
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { const saved = sessionStorage.getItem("nexora_active_section"); if (saved && navItems.includes(saved)) setActive(saved); setSectionRestored(true); }, []);
+  useEffect(() => { if (!sectionRestored) return; sessionStorage.setItem("nexora_active_section", active); writeSessionSnapshot({ token, user, organization: organization as unknown as Record<string, unknown>, activeSection: active }); document.querySelector(".content")?.scrollTo({ top: 0, behavior: "auto" }); }, [active, organization, sectionRestored, token, user]);
+  // The label is retained for the client date display; the dashboard date is rendered independently.
+  void todayLabel;
+  void setTodayLabel;
+  useEffect(() => { const openProfile = () => setActive("Profile"); window.addEventListener("nexora-profile", openProfile); return () => window.removeEventListener("nexora-profile", openProfile); }, []);
+  const heading = useMemo(() => active === "Dashboard" ? "Your workspace at a glance" : active === "Organization" ? "Company rules and access" : active === "Employees" ? "People directory and profiles" : active === "Attendance" ? "Attendance board" : active === "Leave" ? "Leave requests and balances" : active === "Payroll" ? "Monthly payroll" : active === "Analytics" ? "People analytics" : active === "AI Assistant" ? "Nexora AI assistant" : active === "Audit Logs" ? "Workspace audit trail" : "Workspace settings", [active]);
+  useEffect(() => { window.scrollTo({ top: 0, behavior: "auto" }); document.querySelector(".content")?.scrollTo({ top: 0, behavior: "auto" }); }, [active]);
+  const navGlyphs: Record<string, string> = { Dashboard: "⌂", Organization: "◈", Employees: "♙", Attendance: "◷", Leave: "◫", Payroll: "▤", Analytics: "◌", "AI Assistant": "✦", "Audit Logs": "≡", Settings: "⚙", Profile: "◎" };
+  return <div className="app-shell"><aside className="sidebar"><BrandMark /><div className="role-chip"><span className="avatar avatar-small">{user.name.slice(0, 1)}</span><span><b>{roleLabels[user.role]}</b><small>{user.name}</small></span></div><nav>{navItems.filter(item => user.role === "admin" || (user.role === "hr" ? item !== "Audit Logs" : !["Organization", "Audit Logs", "Settings"].includes(item))).map(item => <button key={item} className={active === item ? "nav-item active" : "nav-item"} onClick={() => setActive(item)}><span className="nav-icon" aria-hidden="true">{navGlyphs[item]}</span>{item}</button>)}</nav><button className="nav-item logout" onClick={onLogout}><span className="nav-icon" aria-hidden="true">↪</span>Sign out</button></aside><main className="workspace"><header className="topbar"><div><span className="topbar-label">{organization.companyName}</span><strong>{roleLabels[user.role]} workspace</strong></div><div className="topbar-actions"><span className="status-live">Live workspace</span><span className="avatar">{user.name.slice(0, 1)}</span></div></header><section className="content"><div className="page-heading"><div><span className="eyebrow">{active === "Dashboard" ? "TODAY" : "WORKSPACE"}</span><h1>{heading}</h1><p className="muted">{active === "Dashboard" ? "The important people operations, without the noise." : "This section is connected to your real organization data."}</p></div><span className="date-chip">{new Intl.DateTimeFormat("en", { weekday: "short", day: "numeric", month: "short" }).format(new Date())}</span></div>{active === "Dashboard" && <LiveDashboard token={token} role={user.role} onNavigate={setActive} />}{active === "Organization" && isAdmin && <div className="grid-main"><section className="panel"><div className="panel-title"><div><span className="panel-kicker">COMPANY RULES</span><h2>Organization settings</h2></div><span className="status-pill">Admin only</span></div><form className="form-stack compact" onSubmit={saveSettings}><label>Office start<input type="time" value={settings.officeStart} onChange={e => setSettings({ ...settings, officeStart: e.target.value })} /></label><label>Grace time (minutes)<input type="number" min="0" max="180" value={settings.graceMinutes} onChange={e => setSettings({ ...settings, graceMinutes: e.target.value })} /></label><label>Office address<input value={settings.address} onChange={e => setSettings({ ...settings, address: e.target.value })} placeholder="Office location" /></label><label>Attendance radius (meters)<input type="number" min="25" max="5000" value={settings.radiusMeters} onChange={e => setSettings({ ...settings, radiusMeters: e.target.value })} /></label><label>Office latitude<input type="number" step="any" min="-90" max="90" value={settings.latitude} onChange={e => setSettings({ ...settings, latitude: e.target.value })} placeholder="Optional" /></label><label>Office longitude<input type="number" step="any" min="-180" max="180" value={settings.longitude} onChange={e => setSettings({ ...settings, longitude: e.target.value })} placeholder="Optional" /></label><fieldset><legend>Weekend days</legend>{["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"].map((day, index) => <label key={day}><input type="checkbox" checked={settings.weekendDays.includes(index)} onChange={e => setSettings({ ...settings, weekendDays: e.target.checked ? [...settings.weekendDays, index].sort() : settings.weekendDays.filter(value => value !== index) })} /> {day}</label>)}</fieldset><label>Departments (comma separated)<input value={settings.departments} onChange={e => setSettings({ ...settings, departments: e.target.value })} placeholder="Engineering, HR, Finance" /></label><label>Designations (comma separated)<input value={settings.designations} onChange={e => setSettings({ ...settings, designations: e.target.value })} placeholder="Developer, HR Manager" /></label><div className="date-fields"><label>Annual leave quota<input type="number" min="0" max="365" value={settings.annualQuota} onChange={e => setSettings({ ...settings, annualQuota: e.target.value })} /></label><label>Sick leave quota<input type="number" min="0" max="365" value={settings.sickQuota} onChange={e => setSettings({ ...settings, sickQuota: e.target.value })} /></label><label>Casual leave quota<input type="number" min="0" max="365" value={settings.casualQuota} onChange={e => setSettings({ ...settings, casualQuota: e.target.value })} /></label></div><button className="button button-primary" disabled={busy}>{busy ? "Saving…" : "Save settings"}</button></form></section><section className="panel"><div className="panel-title"><div><span className="panel-kicker">PEOPLE ACCESS</span><h2>Create HR access</h2></div></div><p className="muted">HR can register employees and operate people workflows. Their first sign-in requires a password change.</p><form className="form-stack compact" onSubmit={createHr}><label>HR name<input required value={hrForm.name} onChange={e => setHrForm({ ...hrForm, name: e.target.value })} placeholder="Full name" /></label><label>HR email<input required type="email" value={hrForm.email} onChange={e => setHrForm({ ...hrForm, email: e.target.value })} placeholder="hr@company.com" /></label><label>Temporary password<input required minLength={8} type="password" value={hrForm.temporaryPassword} onChange={e => setHrForm({ ...hrForm, temporaryPassword: e.target.value })} placeholder="At least 8 characters" /></label><button className="button button-dark" disabled={busy}>{busy ? "Creating…" : "Create HR login"}</button></form></section></div>}{active === "Organization" && isAdmin && <HrAccounts token={token} />}{active === "Organization" && isAdmin && <AccountAdmin token={token} ownId={user.id} />}{active === "Employees" && <EmployeeDirectory token={token} user={user} />}{active !== "Dashboard" && (active !== "Organization" || !isAdmin) && active !== "Employees" && <ModulePage token={token} user={user} active={active} />}{message && <div className="toast" role="status">{message}</div>}</section></main></div>;
+}
 
 export default function Home() {
-  return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
-  );
+  const [view, setView] = useState<ViewState>("role"); const [token, setToken] = useState(""); const [user, setUser] = useState<User | null>(null); const [organization, setOrganization] = useState<Organization | null>(null); const [selectedRole, setSelectedRole] = useState<Role | null>(null); const [setupRequired, setSetupRequired] = useState(true); const [adminNotice, setAdminNotice] = useState(""); const [restoring, setRestoring] = useState(true);
+  const enter = (nextToken: string, nextUser: User, nextOrganization: Organization) => { sessionStorage.setItem("hcm_token", nextToken); writeSessionSnapshot({ token: nextToken, user: nextUser, organization: nextOrganization as unknown as Record<string, unknown>, activeSection: "Dashboard" }); window.dispatchEvent(new CustomEvent("nexora-auth", { detail: { authenticated: !nextUser.mustChangePassword, user: nextUser, organization: nextOrganization, validated: true } })); setToken(nextToken); setUser(nextUser); setOrganization(nextOrganization); setSetupRequired(false); setView(nextUser.mustChangePassword ? "password" : "workspace"); };
+  const finishPasswordChange = (nextToken: string, nextUser: User) => { sessionStorage.setItem("hcm_token", nextToken); if (organization) writeSessionSnapshot({ token: nextToken, user: nextUser, organization: organization as unknown as Record<string, unknown>, activeSection: sessionStorage.getItem("nexora_active_section") ?? "Dashboard" }); window.dispatchEvent(new CustomEvent("nexora-auth", { detail: { authenticated: true, user: nextUser, organization, validated: true } })); setToken(nextToken); setUser(nextUser); setView("workspace"); };
+  useEffect(() => {
+    const cached = readSessionSnapshot();
+    const saved = cached?.token ?? sessionStorage.getItem("hcm_token");
+    if (cached && saved) {
+      sessionStorage.setItem("hcm_token", saved);
+      sessionStorage.setItem("nexora_active_section", navItems.includes(cached.activeSection) ? cached.activeSection : "Dashboard");
+      // The cached shell is intentionally hydrated immediately; /api/auth/me remains authoritative.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setToken(saved); setUser(cached.user); setOrganization(cached.organization as unknown as Organization); setSelectedRole(cached.user.role); setView(cached.user.mustChangePassword ? "password" : "workspace"); setRestoring(false);
+      window.dispatchEvent(new CustomEvent("nexora-auth", { detail: { authenticated: !cached.user.mustChangePassword, user: cached.user, organization: cached.organization, validated: false } }));
+      void api<{ user: User; organization: Organization }>("/api/auth/me", {}, saved).then(data => { setToken(saved); setUser(data.user); setOrganization(data.organization); setSelectedRole(data.user.role); writeSessionSnapshot({ token: saved, user: data.user, organization: data.organization as unknown as Record<string, unknown>, activeSection: sessionStorage.getItem("nexora_active_section") ?? "Dashboard" }); window.dispatchEvent(new CustomEvent("nexora-auth", { detail: { authenticated: !data.user.mustChangePassword, user: data.user, organization: data.organization, validated: true } })); setView(data.user.mustChangePassword ? "password" : "workspace"); }).catch(error => { if (!isInvalidSession(error)) return; clearSessionSnapshot(); sessionStorage.removeItem("hcm_token"); sessionStorage.removeItem("nexora_active_section"); window.dispatchEvent(new CustomEvent("nexora-auth", { detail: { authenticated: false, validated: true } })); setToken(""); setUser(null); setOrganization(null); setSelectedRole(null); setView("role"); });
+      return;
+    }
+    if (saved) { api<{ user: User; organization: Organization }>("/api/auth/me", {}, saved).then(data => { setToken(saved); setUser(data.user); setOrganization(data.organization); setSelectedRole(data.user.role); writeSessionSnapshot({ token: saved, user: data.user, organization: data.organization as unknown as Record<string, unknown>, activeSection: "Dashboard" }); window.dispatchEvent(new CustomEvent("nexora-auth", { detail: { authenticated: !data.user.mustChangePassword, user: data.user, organization: data.organization, validated: true } })); setView(data.user.mustChangePassword ? "password" : "workspace"); }).catch(error => { if (isInvalidSession(error)) { sessionStorage.removeItem("hcm_token"); clearSessionSnapshot(); setView("role"); } }).finally(() => setRestoring(false)); } else { api<{ setupRequired: boolean }>("/api/setup/status").then(data => setSetupRequired(data.setupRequired)).catch(() => { // Keep Admin signup available if status lookup fails; POST /api/setup is authoritative.
+      setSetupRequired(true);
+    }).finally(() => setRestoring(false)); }
+  }, []);
+  const continueRole = (role: Role) => { setSelectedRole(role); setAdminNotice(""); setView(role === "admin" ? "admin-access" : "login"); };
+  if (restoring) return null;
+  if (view === "role") return <RoleChooserV2 setupRequired={setupRequired} onContinue={continueRole} />;
+  if (view === "admin-access") return <AdminAccess setupRequired={setupRequired} notice={adminNotice} onSignIn={() => { setSelectedRole("admin"); setView("login"); }} onSignUp={() => setView("setup")} onBack={() => { setSelectedRole(null); setView("role"); }} />;
+  if (view === "setup") return <AdminSignup onComplete={() => { setSetupRequired(false); setSelectedRole("admin"); setAdminNotice("Admin account created. Sign in with your new credentials."); setView("admin-access"); }} onBack={() => setView("admin-access")} />;
+  if (view === "login" && selectedRole) return <LoginForm role={selectedRole} onComplete={enter} onBack={() => { setView(selectedRole === "admin" ? "admin-access" : "role"); }} />;
+  if (view === "password" && user) return <PasswordChangeForm token={token} user={user} onComplete={finishPasswordChange} />;
+  if (user && organization) return <Workspace token={token} user={user} initialOrganization={organization} onLogout={() => { void api("/api/auth/logout", { method: "POST" }, token).catch(() => undefined); clearSessionSnapshot(); sessionStorage.removeItem("hcm_token"); sessionStorage.removeItem("nexora_active_section"); window.dispatchEvent(new Event("nexora-auth")); setToken(""); setUser(null); setOrganization(null); setSelectedRole(null); setView("role"); }} />;
+  return null;
 }
