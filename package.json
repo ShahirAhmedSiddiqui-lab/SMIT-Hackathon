@@ -4,11 +4,12 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "dev:server": "tsx watch server/index.ts",
+    "build:server": "tsc --project server/tsconfig.runtime.json",
+    "dev:server": "npm run build:server && node tmp/server/index.js",
     "dev:all": "concurrently \"npm run dev\" \"npm run dev:server\"",
     "build": "next build",
     "start": "next start",
-    "start:server": "tsx server/index.ts",
+    "start:server": "npm run build:server && node tmp/server/index.js",
     "lint": "eslint"
   },
   "dependencies": {

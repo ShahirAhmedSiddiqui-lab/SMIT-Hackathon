@@ -4,6 +4,7 @@ import { env } from "../config/env";
 
 export type AuthTokenPayload = {
   sub: string;
+  ver?: number;
 };
 
 export const signToken = (payload: AuthTokenPayload): string =>

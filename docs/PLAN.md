@@ -3,8 +3,8 @@
 ## Current state
 
 - Brief review complete: all seven physical PDF pages extracted and visually inspected; requirements/permissions/formulas/rubric in `docs/BRIEF.md`.
-- Current user request is review first. Application implementation has not started in this turn.
-- Existing starter preserved; no app dependency changes. Temporary PDF reader/renderer installed only in `tmp/pdfs/tools`.
+- Asset review and the design system are complete and captured in `docs/DESIGN.md`; implementation is active across the setup, auth, employee, and attendance slices.
+- Existing starter preserved; no app dependency changes. Temporary PDF inspection tools were removed after review.
 - Prior successful database connectivity is evidence from earlier session/participant terminal, not a new check. Dedicated empty HCM database, AI credentials, and hosting remain unverified.
 - Deadline time/timezone not supplied in PDF. Remaining time unknown; do not invent a deadline or absolute milestone schedule.
 
@@ -14,9 +14,9 @@ Target all mandatory web checklist items; prioritize a narrow working demo throu
 
 | Milestone | Work and dependencies | Acceptance/evidence | State |
 |---|---|---|---|
-| 0 Scope and decisions | Deadline, company timezone, H identity/self-approval, CSV interpretation; verify dedicated DB and AI provider access without exposing secrets | Decisions recorded; integration unknowns explicit | Brief reviewed; choices pending |
-| 1 First complete flow | First-run company/Admin, login + validated JWT/session, role/scope middleware, settings; then A creates H, H creates E, first password change | One bootstrap only incl concurrent requests; refresh persistence; H cannot create A; E cannot read another E; bcrypt hashes only | Not started |
-| 2 Attendance and leave | Organization calendars/quotas, staff identity, attendance uniqueness/timestamps/statuses, corrections, leave balance/approval/cancellation | Duplicate check-in 409; under-5h boundary; weekends/holidays excluded; overlap/balance 422; approval audited/notified | Not started |
+| 0 Scope and decisions | Deadline, company timezone, H identity/self-approval, CSV interpretation; verify dedicated DB and AI provider access without exposing secrets | Decisions recorded; integration unknowns explicit | Brief/design review complete; event decisions pending |
+| 1 First complete flow | First-run company/Admin, login + validated JWT/session, role/scope middleware, settings; then A creates H, H creates E, first password change | One bootstrap only incl concurrent requests; refresh persistence; H cannot create A; E cannot read another E; bcrypt hashes only | In progress — setup, auth, settings, HR creation, employee registration, directory, and password-change slices built; full role verification pending |
+| 2 Attendance and leave | Organization calendars/quotas, staff identity, attendance uniqueness/timestamps/statuses, corrections, leave balance/approval/cancellation | Duplicate check-in 409; under-5h boundary; weekends/holidays excluded; overlap/balance 422; approval audited/notified | In progress — attendance and employee/HR leave flows built; deterministic tests, corrections, holidays, and notifications pending |
 | 3 Payroll | Salary settings, working-day ledger, join/exit dates, monthly draft, illustrative tax, A finalize, PDF payslip | Table-driven tax/proration/deduction tests; finalized snapshot locked for every role; own-only PDF download | Not started |
 | 4 Analytics and AI | Reuse authorized attendance/leave/payroll aggregates; role dashboards/filtering; seven LLM tools, summary, smart leave, policy | Live facts agree across dashboard/chat; E salary refusal; correct relative dates; 15s failure fallback, validated JSON retry once, rate limit and AI logs | Not started |
 | 5 Remaining checklist | Employee 360/search/paging, CSV dry-run/import/export, announcements, notifications, A audit feed, full settings administration | Matrix #01-25 checked individually; unsupported items disclosed | Not started |
@@ -38,4 +38,18 @@ After deadline is known, use an adjustable budget of about 10% scope/setup, 55% 
 
 ## Next action
 
-Obtain actual submission cutoff (with timezone) and available AI provider details without sending keys in chat. When implementation is requested, use `.agents/skills/mern-vertical-slice/SKILL.md` and start milestone 1. First check: empty DB -> company/Admin setup -> login -> refresh persistence -> duplicate setup denied. Keep all existing unrelated user changes.
+Continue milestone 2 with deterministic attendance/leave tests, attendance corrections, holidays, and notifications. Keep all existing unrelated user changes.
+
+## Completion snapshot
+
+- ✅ Foundation/design phase: brief reviewed, asset direction documented, project setup and database configuration ready.
+- 🟡 Milestone 1: core implementation is built, but the complete Admin → HR → Employee browser journey and deterministic authorization tests still need verification.
+- 🟡 Milestone 2: attendance and employee/HR leave flows are built; deterministic tests, corrections, holidays, and notifications remain.
+- ⬜ Milestones 3–7: payroll, analytics/AI, remaining checklist, packaging, and authorized release remain.
+
+## Phase count
+
+- Completed: foundation/design phase.
+- In progress: milestones 1 and 2.
+- Remaining untouched milestones: 5 — payroll, analytics/AI, remaining checklist, integration/packaging, and authorized release.
+- Overall: 5 full milestones remain, plus unfinished acceptance work in milestones 1 and 2.

@@ -1,6 +1,6 @@
-# SMIT Hackathon
+# Nexora
 
-Starter workspace for a Next.js + Express + TypeScript + MongoDB application.
+Nexora is a Next.js + Express + TypeScript + MongoDB human capital workspace.
 
 ## Setup
 
@@ -10,7 +10,7 @@ Install dependencies:
 npm install
 ```
 
-Copy `.env.example` to `.env` and replace `JWT_SECRET` with a long random value. Set `MONGODB_URI` to the MongoDB database you want to use.
+Copy `.env.example` to `.env`, replace `JWT_SECRET` with a long random value, and set `MONGODB_URI` to your dedicated HCM database. Keep the database name in `MONGODB_DB_NAME` separate from MongoDB sample databases.
 
 Run the frontend and API together:
 
@@ -20,9 +20,11 @@ npm run dev:all
 
 Or run them separately with `npm run dev` and `npm run dev:server`.
 
-The frontend runs at `http://localhost:3000`; the API runs at `http://localhost:5000`. The initial API health check is available at `/api/health`.
+The frontend runs at `http://localhost:3000`; the API runs at `http://localhost:5000`. Confirm the API is running by opening `http://localhost:5000/api/health` before creating the workspace. If the browser says “Cannot reach the API server”, restart with `npm run dev:all`.
 
-The project intentionally contains no domain-specific models, routes, screens, or authentication flow yet.
+If the API exits with a MongoDB Atlas timeout, the application cannot reach the database from the current network. Confirm Atlas Network Access includes your current IP, disable a blocking VPN/firewall, or try another network. Do not paste the URI into chat or source control.
+
+The first working slice includes first-run setup, JWT login/password change, organization settings, HR access creation, employee registration, and a role-scoped employee directory. Continue from `docs/PLAN.md` for the remaining HCM modules.
 
 ## Getting Started
 
