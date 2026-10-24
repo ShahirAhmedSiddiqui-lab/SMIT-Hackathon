@@ -5,11 +5,12 @@
   "scripts": {
     "dev": "next dev",
     "build:server": "tsc --project server/tsconfig.runtime.json",
-    "dev:server": "npm run build:server && node tmp/server/index.js",
+    "dev:server": "npm run build:server && concurrently \"tsc --watch --project server/tsconfig.runtime.json\" \"node --watch dist/server/index.js\"",
     "dev:all": "concurrently \"npm run dev\" \"npm run dev:server\"",
     "build": "next build",
     "start": "next start",
-    "start:server": "npm run build:server && node tmp/server/index.js",
+    "start:server": "node dist/server/index.js",
+    "test": "npm run build:server && node --test dist/server/tests/leave-rules.test.js dist/server/tests/attendance-rules.test.js dist/server/tests/payroll-rules.test.js dist/server/tests/ai-tools.test.js",
     "lint": "eslint"
   },
   "dependencies": {

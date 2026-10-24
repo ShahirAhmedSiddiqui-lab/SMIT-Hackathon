@@ -10,6 +10,14 @@ import { usersRouter } from "./routes/users";
 import { employeesRouter } from "./routes/employees";
 import { attendanceRouter } from "./routes/attendance";
 import { leaveRouter } from "./routes/leave";
+import { aiRouter } from "./routes/ai";
+import { notificationsRouter } from "./routes/notifications";
+import { auditRouter } from "./routes/audit";
+import { payrollRouter } from "./routes/payroll";
+import { analyticsRouter } from "./routes/analytics";
+import { announcementsRouter } from "./routes/announcements";
+import { requireAuth } from "./middleware/auth";
+import { ForbiddenError } from "./utils/validation";
 
 export const createApp = (): express.Express => {
   const app = express();
@@ -28,11 +36,21 @@ export const createApp = (): express.Express => {
 
   app.use("/api/setup", setupRouter);
   app.use("/api/auth", authRouter);
+  app.use("/api", requireAuth, (request, _response, next) => {
+    if (request.auth?.mustChangePassword) return next(new ForbiddenError("Change your temporary password before continuing"));
+    next();
+  });
   app.use("/api/organization", organizationRouter);
   app.use("/api/users", usersRouter);
   app.use("/api/employees", employeesRouter);
   app.use("/api/attendance", attendanceRouter);
   app.use("/api/leave", leaveRouter);
+  app.use("/api/ai", aiRouter);
+  app.use("/api/notifications", notificationsRouter);
+  app.use("/api/audit", auditRouter);
+  app.use("/api/payroll", payrollRouter);
+  app.use("/api/analytics", analyticsRouter);
+  app.use("/api/announcements", announcementsRouter);
 
   app.use((_request, response) => {
     response.status(404).json({ error: { code: "NOT_FOUND", message: "Route not found" } });

@@ -7,6 +7,13 @@ const organizationSchema = new Schema(
     officeStart: { type: String, required: true, default: "09:00" },
     graceMinutes: { type: Number, required: true, default: 15, min: 0, max: 180 },
     weekendDays: { type: [Number], required: true, default: [0, 6] },
+    departments: { type: [String], default: [] },
+    designations: { type: [String], default: [] },
+    leaveQuotas: {
+      annual: { type: Number, min: 0, max: 365, default: 14 },
+      sick: { type: Number, min: 0, max: 365, default: 8 },
+      casual: { type: Number, min: 0, max: 365, default: 10 },
+    },
     officeLocation: {
       address: { type: String, trim: true, maxlength: 200, default: "" },
       latitude: { type: Number, min: -90, max: 90, default: null },

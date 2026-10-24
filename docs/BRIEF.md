@@ -159,3 +159,31 @@ Proposed API contract conventions: `/api` domain routes (AI exposed at official 
 Follow p6: empty installation -> A company/settings/location/department/leave types -> A creates H -> H registers 2-3 employees -> E first login/password change/check-in -> E smart leave preview/confirm -> H approves -> H filtered dashboard + AI summary/leave query -> H payroll draft -> A finalizes -> E payslip download + forbidden colleague salary question -> A audit log.
 
 First build acceptance: an empty dedicated database supports one-time company/Admin setup, subsequent Admin login and persisted company settings after refresh, while duplicate bootstrap is rejected. Then extend to H-created employee first-use login and server-stamped attendance. Do not claim the full event checklist complete merely because this slice works.
+## Implementation update (2026-10-25)
+
+Attendance corrections are now implemented for the primary flow: employees can submit a dated correction with a required reason, and HR can review, approve, or reject it. Approval updates the server-owned attendance record; audit persistence remains part of the next milestone slice.
+
+Organization holiday management is now implemented for Admins, and leave requests exclude configured holidays from their working-day count.
+
+Nexora AI is now connected through the server boundary using Gemini `gemini-2.5-flash-lite`. The assistant is context-limited to the signed-in workspace and does not expose private server credentials to the browser.
+
+Leave and attendance-correction decisions now create persisted, recipient-scoped notifications with read/unread state.
+Admin audit logging is now implemented for leave and attendance-correction decisions, with server-enforced Admin-only access.
+
+Deterministic leave-rule tests now cover weekdays, weekends, holidays, empty working-day ranges, and overlapping dates.
+
+Deterministic attendance tests now cover the grace cutoff, server duration, half-day boundary, and corrected attendance status.
+
+Payroll foundation is now implemented: monthly drafts, persisted payslip snapshots, Admin finalization, and role-scoped payroll viewing. Tax, proration, and PDF payslips are not yet implemented.
+
+Payroll rules and payslips are now extended with HRA/medical/gross calculation, illustrative tax, join-date proration, finalized-run locking, and authenticated PDF downloads.
+
+Analytics foundation is now implemented with role-scoped live summaries and an Analytics panel for organization and personal metrics.
+
+Role-aware sidebar modules now display connected live data instead of placeholder screens for the implemented workflows.
+
+Payroll drafts now use persisted attendance, approved leave, holidays, organization weekends, and employee join/exit dates to calculate absence, unpaid-leave, half-day, and employment-date deductions. The payslip snapshot preserves those ledger values for review.
+
+The AI chat now uses the required seven server-executed Gemini tools with role and record-scope checks. Calls are rate-limited, time-bounded, and logged without prompts, credentials, or private tool payloads.
+
+Admin/HR can request a live grounded dashboard summary, while employees and HR can generate a validated smart-leave draft from natural language. Drafts are never saved by AI and display an explicit confirmation requirement before the normal leave form is used. Policy answers are constrained by the server-provided policy context.

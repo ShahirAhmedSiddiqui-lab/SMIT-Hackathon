@@ -1,62 +1,41 @@
 # Nexora
 
-Nexora is a Next.js + Express + TypeScript + MongoDB human capital workspace.
+Nexora is a Next.js, Express, TypeScript and MongoDB human capital workspace for Admin, HR and Employee roles. It starts with an empty application database. The hackathon brief is in [docs/BRIEF.md](docs/BRIEF.md); [docs/PLAN.md](docs/PLAN.md) lists what is built and what remains unverified.
 
-## Setup
+## Run locally
 
-Install dependencies:
+1. Use Node.js 24 and run `npm ci`.
+2. Copy `.env.example` to `.env`. Set `MONGODB_URI` and `MONGODB_DB_NAME` to a **dedicated Nexora database**. Set a long random `JWT_SECRET`. Set `GEMINI_API_KEY` for live AI; keep the key on the server. `GEMINI_MODEL` defaults to `gemini-2.5-flash-lite` in the example.
+3. Run `npm run dev:all`. The frontend starts at `http://localhost:3000`, and the API starts at `http://localhost:5000`. Check `http://localhost:5000/api/health` before creating a workspace. Restart the API after changing environment settings.
+4. On an empty database, create the company and first Admin. Sign in as Admin, create an HR login and link it to an HR staff profile. HR can then create employees. Temporary-password users must change their password before using protected APIs.
 
-```bash
-npm install
-```
+`dev:server` watches TypeScript and restarts Node when compiled files change. If you already have another API process on port 5000, stop that process before starting the new one; otherwise the browser can still hit old routes. The frontend API base URL is `NEXT_PUBLIC_API_URL`, which must point to the deployed API in hosted environments. `CLIENT_ORIGIN` must include the frontend origin.
 
-Copy `.env.example` to `.env`, replace `JWT_SECRET` with a long random value, and set `MONGODB_URI` to your dedicated HCM database. Keep the database name in `MONGODB_DB_NAME` separate from MongoDB sample databases.
+For deployment, build the frontend with `npm run build` and the API with `npm run build:server`. Start them with `npm run start` and `npm run start:server` respectively. The API build is emitted to the ignored `dist/server` directory; it is generated during deployment and is not committed.
 
-Run the frontend and API together:
-
-```bash
-npm run dev:all
-```
-
-Or run them separately with `npm run dev` and `npm run dev:server`.
-
-The frontend runs at `http://localhost:3000`; the API runs at `http://localhost:5000`. Confirm the API is running by opening `http://localhost:5000/api/health` before creating the workspace. If the browser says “Cannot reach the API server”, restart with `npm run dev:all`.
-
-If the API exits with a MongoDB Atlas timeout, the application cannot reach the database from the current network. Confirm Atlas Network Access includes your current IP, disable a blocking VPN/firewall, or try another network. Do not paste the URI into chat or source control.
-
-The first working slice includes first-run setup, JWT login/password change, organization settings, HR access creation, employee registration, and a role-scoped employee directory. Continue from `docs/PLAN.md` for the remaining HCM modules.
-
-## Getting Started
-
-First, run the development server:
+## Checks
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm test
+npm run lint
+npm run build
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+The tests currently cover calculation and AI tool declarations/permissions. A production build does not validate MongoDB persistence, Gemini responses, browser flows or hosting.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+The API requires a reachable MongoDB deployment at startup. If it cannot connect, check Atlas Network Access, VPN/firewall rules, and outbound port 27017 before testing protected flows.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Current functionality
 
-## Learn More
+- One-time setup, JWT login, first-use password change, logout token revocation, Admin account controls and role-restricted routes.
+- Organization settings, departments/designations, leave quotas and holidays; employee registration, search, paging and scoped editing.
+- Server-stamped attendance, HR correction decisions, leave requests/balances/decisions, monthly payroll drafts, Admin finalization and employee finalized-only PDF payslips.
+- Live dashboard summary, date and department analytics filters, announcements, recipient-scoped notifications, Admin audit feed and Gemini-backed assistant tools, summary and leave draft.
 
-To learn more about Next.js, take a look at the following resources:
+Leave quotas are tracked by calendar year. A request spanning New Year must be submitted as two requests, one per year.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Known incomplete work
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+The project is **not yet verified as a complete hackathon submission**. Custom leave types, CSV import/export, full Employee 360, complete analytics formulas/trends, strict AI policy Q&A and complete before/after audit coverage remain. Setup, payroll and leave need transaction/race integration tests. Live MongoDB and Gemini user journeys, 375px browser verification, deployment and five-minute demo rehearsal have not been completed in the latest update. See [docs/PLAN.md](docs/PLAN.md) for the current checklist.
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Keep `.env` out of Git. `.env.example` contains placeholders only. Do not use or reset MongoDB sample databases for this app.

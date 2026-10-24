@@ -13,6 +13,7 @@ const employeeSchema = new Schema(
     designation: { type: String, required: true, trim: true, maxlength: 100 },
     employmentType: { type: String, enum: ["full_time", "part_time", "contract"], default: "full_time" },
     joinDate: { type: Date, required: true },
+    exitDate: { type: Date, default: null },
     basicSalary: { type: Number, required: true, min: 0 },
     status: { type: String, enum: ["active", "inactive"], default: "active", index: true },
   },

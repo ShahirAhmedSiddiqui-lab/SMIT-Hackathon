@@ -18,6 +18,8 @@ export const env = {
   mongoDbName: process.env.MONGODB_DB_NAME ?? "hcm-lite",
   jwtSecret: required("JWT_SECRET"),
   jwtExpiresIn: process.env.JWT_EXPIRES_IN ?? "7d",
+  geminiApiKey: process.env.GEMINI_API_KEY ?? process.env.AI_API_KEY ?? "",
+  geminiModel: process.env.GEMINI_MODEL ?? "gemini-2.5-flash-lite",
 } as const;
 
 if (!Number.isInteger(env.port) || env.port < 1 || env.port > 65535) {

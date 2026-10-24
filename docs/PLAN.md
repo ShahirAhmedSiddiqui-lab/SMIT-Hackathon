@@ -1,55 +1,53 @@
-# HCM Lite implementation plan
+# Nexora implementation plan
 
-## Current state
+The official scope and rules are in [BRIEF.md](BRIEF.md). This file records the current implementation state. Statuses are based on source review and local checks, not a completed live demo.
 
-- Brief review complete: all seven physical PDF pages extracted and visually inspected; requirements/permissions/formulas/rubric in `docs/BRIEF.md`.
-- Asset review and the design system are complete and captured in `docs/DESIGN.md`; implementation is active across the setup, auth, employee, and attendance slices.
-- Existing starter preserved; no app dependency changes. Temporary PDF inspection tools were removed after review.
-- Prior successful database connectivity is evidence from earlier session/participant terminal, not a new check. Dedicated empty HCM database, AI credentials, and hosting remain unverified.
-- Deadline time/timezone not supplied in PDF. Remaining time unknown; do not invent a deadline or absolute milestone schedule.
+## Current state (25 October 2026)
 
-## Scope and sequencing
+- Core setup, roles, employee records, attendance, leave, payroll, analytics, AI, notifications, announcements and audit all have persisted routes and UI entry points.
+- First-use accounts are restricted by the API until password change. Admin can deactivate and reset accounts. HR staff profiles can be linked by Admin for HR personal attendance and leave.
+- Employees see finalized payslips only; PDF links use each slip's run ID. Payroll uses working-day proration, employee dates and attendance ledger inputs.
+- Dashboard cards read live API data. Attendance board derives absent, leave and missing-checkout states. Analytics accepts a date and department and returns basic attendance rates.
+- `npm test`: 21 utility tests pass. `npm run lint`, `npm run build`, and `git diff --check` pass. Local frontend returned HTTP 200 and the pre-existing API process answered health with `ok`.
+- Deployment packaging is now reproducible: server output is generated in ignored `dist/server`, `npm run build:server` prepares it, and `npm run start:server` starts the compiled API without rebuilding at runtime. The generated `tmp` directory is removed from the workspace.
+- No live Admin -> HR -> Employee browser journey, dedicated test database run, live Gemini call, mobile-width visual check, or deployment verification was completed in this update. The existing API process on port 5000 answered health, but a fresh build started on port 5001 timed out connecting to MongoDB Atlas in this environment. The existing process may need restart to load the new server code.
 
-Target all mandatory web checklist items; prioritize a narrow working demo through all core modules before secondary lists and bonuses. CSV remains tracked due to ambiguous optional wording. Required: real tool-calling AI, not canned answers. Useful implementation support: common date/rule services, reliable validation/error contracts, deterministic calculations and role tests. Deferred: native mobile, camera/face matching/liveness, risk/anomaly predictions, extra penalties, Roman Urdu, PWA/dark-mode bonus work.
+## Official checklist status
 
-| Milestone | Work and dependencies | Acceptance/evidence | State |
-|---|---|---|---|
-| 0 Scope and decisions | Deadline, company timezone, H identity/self-approval, CSV interpretation; verify dedicated DB and AI provider access without exposing secrets | Decisions recorded; integration unknowns explicit | Brief/design review complete; event decisions pending |
-| 1 First complete flow | First-run company/Admin, login + validated JWT/session, role/scope middleware, settings; then A creates H, H creates E, first password change | One bootstrap only incl concurrent requests; refresh persistence; H cannot create A; E cannot read another E; bcrypt hashes only | In progress — setup, auth, settings, HR creation, employee registration, directory, and password-change slices built; full role verification pending |
-| 2 Attendance and leave | Organization calendars/quotas, staff identity, attendance uniqueness/timestamps/statuses, corrections, leave balance/approval/cancellation | Duplicate check-in 409; under-5h boundary; weekends/holidays excluded; overlap/balance 422; approval audited/notified | In progress — attendance and employee/HR leave flows built; deterministic tests, corrections, holidays, and notifications pending |
-| 3 Payroll | Salary settings, working-day ledger, join/exit dates, monthly draft, illustrative tax, A finalize, PDF payslip | Table-driven tax/proration/deduction tests; finalized snapshot locked for every role; own-only PDF download | Not started |
-| 4 Analytics and AI | Reuse authorized attendance/leave/payroll aggregates; role dashboards/filtering; seven LLM tools, summary, smart leave, policy | Live facts agree across dashboard/chat; E salary refusal; correct relative dates; 15s failure fallback, validated JSON retry once, rate limit and AI logs | Not started |
-| 5 Remaining checklist | Employee 360/search/paging, CSV dry-run/import/export, announcements, notifications, A audit feed, full settings administration | Matrix #01-25 checked individually; unsupported items disclosed | Not started |
-| 6 Integration and packaging | Narrow deterministic tests, lint/typechecks/build, real browser at 375px and desktop; setup/reset isolation; README and five-minute rehearsal | No-data + populated journeys, console/network review, role bypass tests; judge can run in <10min; prepare repository/live destination | Not started |
-| 7 Authorized release | Push/host only to participant-authorized destinations; fresh empty judging state; verify live flows | Accessible repository/live links, no actual secrets; each student submits both links on LMS | Not started |
+| # | Requirement | Current status |
+|---|---|---|
+| 01 | One-time company/Admin setup | Built; concurrent setup integration test needed |
+| 02 | Login/logout/password change/RBAC | Built; cross-role and token-revocation integration tests needed |
+| 03 | Hours, grace, weekends, coordinates/radius | API and Admin settings form built; live persistence check needed |
+| 04 | Departments, designations, leave types/quotas, holidays | Department/designation lists, annual/sick/casual quotas and holidays built; custom leave types and live persistence check remain |
+| 05 | HR creation, deactivate, reset | Built; live verification needed |
+| 06 | HR employee registration and scoped edits | Built; transaction and live role verification needed |
+| 07 | Search/paging/Employee 360 | Search/paging and profile editor built; complete 360 view remains |
+| 08 | CSV dry run/import/export | Not built; brief wording is ambiguous about optional status |
+| 09 | HR/Employee check-in/out | Built for linked profiles; live verification needed |
+| 10 | Attendance board/calendar | Board date selection and personal monthly calendar built; live consistency check remains |
+| 11 | Corrections and HR decisions | Built; live verification and complete audit snapshots needed |
+| 12 | HR/Employee leave and balances | Calendar-year quota tracking built; cross-year requests must be split; concurrent reservations need work |
+| 13 | HR decisions/comments | Built; concurrent approval protection and live verification needed |
+| 14 | Salary structure | Basic salary editing and required calculations built; role journey needs verification |
+| 15 | Monthly payroll draft | Built; transactional creation and reconciliation need work |
+| 16 | Admin finalize/lock | Built; finalization concurrency and notification failure handling need work |
+| 17 | Own-only PDF payslip | Built with finalized-only employee access; download journey needs verification |
+| 18 | Role dashboards, KPIs, filters, trends | Live cards/basic date and department filters built; trends and full formulas remain |
+| 19 | Seven-tool AI chat | Built; live provider and tool-to-REST consistency checks remain |
+| 20 | Admin/HR AI summary | Built; strict 3-5 grounded bullet validation remains |
+| 21 | Smart leave draft and confirmation | Draft populates normal leave form; live provider journey remains |
+| 22 | Policy Q&A | Prompt guidance exists; strict policy-only behavior remains |
+| 23 | Announcements | Admin/HR post and all roles read on dashboard; live verification needed |
+| 24 | Own notifications | Leave, correction and finalized payslip events built; live verification needed |
+| 25 | Immutable Admin audit | Read-only Admin feed and some before/after snapshots built; remaining mutations need complete audit coverage |
 
-After deadline is known, use an adjustable budget of about 10% scope/setup, 55% complete flows, 20% validation/fixes, 15% packaging/rehearsal. These are planning heuristics, not event rules. Account for elapsed time and avoid spending the final window on bonuses.
+## Next work in priority order
 
-## Risks / unresolved decisions
+1. Run isolated database and browser journeys for first setup, Admin -> HR -> Employee, temporary-password API denial, role isolation, check-in, leave approval, payroll finalization and own PDF. Test at desktop and 375px. Do not reset an existing database.
+2. Make setup, leave approvals, payroll draft/finalize and their audit/notification writes transaction-safe; add integration tests for races and failures.
+3. Finish organization master data, Employee 360, attendance calendar, CSV if required, and all brief analytics formulas and trends.
+4. Verify Gemini live, add structured-output retry and strict policy Q&A, and reconcile AI tool results with REST/dashboard facts.
+5. Rehearse the five-minute demo from a fresh dedicated installation; verify README setup under ten minutes. Host only on a destination authorized by the participant, then verify both submitted links.
 
-- No exact cutoff: cannot calculate remaining time or safely commit to bonus work.
-- H self-service requires linked staff identity; H self-approval not defined. Clarify workflow before that branch.
-- CSV prose/checklist conflict: retain task, ask organizer if necessary.
-- Payroll/date semantics and historical setting snapshots need documented choices/tests; see BRIEF assumptions.
-- AI requires live provider tool calling, credentials and connectivity; unavailable provider must show explicit fallback and remain marked incomplete.
-- Existing Atlas sample database is unrelated. Validate selected DB name only, never print connection URI; select a dedicated empty HCM DB without modifying/deleting sample collections.
-- Hosted judging requires fresh setup; rehearsal data must not contaminate judged target. No automatic destructive resets.
-- Many functions depend on shared rules and authorization; build services once so AI, dashboards and payroll cannot diverge.
-
-## Next action
-
-Continue milestone 2 with deterministic attendance/leave tests, attendance corrections, holidays, and notifications. Keep all existing unrelated user changes.
-
-## Completion snapshot
-
-- ✅ Foundation/design phase: brief reviewed, asset direction documented, project setup and database configuration ready.
-- 🟡 Milestone 1: core implementation is built, but the complete Admin → HR → Employee browser journey and deterministic authorization tests still need verification.
-- 🟡 Milestone 2: attendance and employee/HR leave flows are built; deterministic tests, corrections, holidays, and notifications remain.
-- ⬜ Milestones 3–7: payroll, analytics/AI, remaining checklist, packaging, and authorized release remain.
-
-## Phase count
-
-- Completed: foundation/design phase.
-- In progress: milestones 1 and 2.
-- Remaining untouched milestones: 5 — payroll, analytics/AI, remaining checklist, integration/packaging, and authorized release.
-- Overall: 5 full milestones remain, plus unfinished acceptance work in milestones 1 and 2.
+The brief did not specify a submission cutoff or timezone. Do not infer either. Keep the sample MongoDB database separate from the dedicated Nexora application database.
