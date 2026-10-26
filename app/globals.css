@@ -348,27 +348,3 @@ button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-vis
 .ai-widget { position:fixed !important; right:24px !important; bottom:24px !important; z-index:1000 !important; display:block !important; visibility:visible; }
 .ai-launcher { position:relative; z-index:1001; white-space:nowrap; }
 @media (max-width:650px) { .ai-widget { right:16px !important; bottom:16px !important; } }
-/* Shared inline icon treatment: crisp, lightweight, and aligned with Nexora controls. */
-.nav-icon svg,
-.role-option-icon svg,
-.ai-launcher span svg,
-.leave-launcher span svg,
-.correction-launcher span svg,
-.holiday-launcher span svg,
-.audit-launcher span svg,
-.payroll-launcher span svg,
-.analytics-launcher span svg {
-  width: 1em;
-  height: 1em;
-  display: block;
-  stroke: currentColor;
-  fill: none;
-  stroke-width: 1.8;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
-.role-option-icon svg {
-  width: 1.25em;
-  height: 1.25em;
-}
