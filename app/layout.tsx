@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { AiWidget } from "./ai-widget";
 import { PasswordVisibility } from "./password-visibility";
+import { ProfileCardLink } from "./profile-card-link";
+import { IconEnhancer } from "./icon-enhancer";
 
 export const metadata: Metadata = {
   title: "Nexora | People operations, clearly",
@@ -11,7 +13,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en" className="h-full antialiased">
-      <body className="min-h-full flex flex-col"><PasswordVisibility />{children}<AiWidget /></body>
+      <body className="min-h-full flex flex-col"><PasswordVisibility /><ProfileCardLink /><IconEnhancer />{children}<AiWidget /></body>
     </html>
   );
 }

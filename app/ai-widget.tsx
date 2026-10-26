@@ -7,7 +7,22 @@ type Mode = "ask" | "leave" | "summary";
 
 export function AiWidget() {
   const [token, setToken] = useState(""); const [role, setRole] = useState(""); const [open, setOpen] = useState(false); const [mode, setMode] = useState<Mode>("ask"); const [question, setQuestion] = useState(""); const [answer, setAnswer] = useState(""); const [leaveText, setLeaveText] = useState(""); const [draft, setDraft] = useState<Record<string, unknown> | null>(null); const [summary, setSummary] = useState(""); const [error, setError] = useState(""); const [busy, setBusy] = useState(false);
-  useEffect(() => { void Promise.resolve().then(async () => { const saved = sessionStorage.getItem("hcm_token"); if (!saved) return; setToken(saved); const response = await fetch(`${API_URL}/api/auth/me`, { headers: { Authorization: `Bearer ${saved}` } }); const payload = await response.json(); setRole(payload.data?.user?.role ?? ""); }).catch(() => undefined); }, []);
+  useEffect(() => {
+    let cancelled = false;
+    const syncSession = async () => {
+      const saved = sessionStorage.getItem("hcm_token");
+      if (!saved) { setToken(""); setRole(""); return; }
+      try {
+        const response = await fetch(`${API_URL}/api/auth/me`, { headers: { Authorization: `Bearer ${saved}` } });
+        const payload = await response.json();
+        if (!cancelled && response.ok) { setToken(saved); setRole(payload.data?.user?.role ?? ""); }
+      } catch { if (!cancelled) { setToken(""); setRole(""); } }
+    };
+    const handleAuth = () => { void syncSession(); };
+    void syncSession();
+    window.addEventListener("nexora-auth", handleAuth);
+    return () => { cancelled = true; window.removeEventListener("nexora-auth", handleAuth); };
+  }, []);
   const call = async (path: string, body: Record<string, unknown>) => { const response = await fetch(`${API_URL}${path}`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify(body) }); const payload = await response.json(); if (!response.ok) throw new Error(payload.error?.message ?? "AI assistant is unavailable"); return payload.data; };
   const ask = async (event: FormEvent) => { event.preventDefault(); if (!question.trim()) return; setBusy(true); setError(""); setAnswer(""); try { const data = await call("/api/ai/chat", { question: question.trim() }); setAnswer(data.answer); } catch (err) { setError(err instanceof Error ? err.message : "AI assistant is unavailable"); } finally { setBusy(false); } };
   const draftLeave = async (event: FormEvent) => { event.preventDefault(); if (!leaveText.trim()) return; setBusy(true); setError(""); setDraft(null); try { const data = await call("/api/ai/smart-leave", { text: leaveText.trim() }); setDraft(data.draft); } catch (err) { setError(err instanceof Error ? err.message : "Leave draft unavailable"); } finally { setBusy(false); } };

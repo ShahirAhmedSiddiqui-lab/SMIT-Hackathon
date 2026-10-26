@@ -73,3 +73,14 @@ At 375px, the sidebar becomes a compact top bar or drawer, panels stack in one c
 - 768px: navigation and form columns transition without clipped labels.
 - 1280px: sidebar, topbar and workspace retain the reference's calm density.
 - Verify empty, loading, error and success states before adding secondary dashboards.
+
+## Premium redesign direction (October 2026)
+
+Nexora now follows a quiet-luxury SaaS direction: calmer surfaces, stronger hierarchy, fewer competing cards, and role-specific operational priorities. The existing navy/teal identity remains the anchor; violet is reserved for AI, amber for attention, and coral for errors.
+
+- Shared visual tokens are defined in `app/globals.css`, including ink, surface, line, radius, spacing and elevation values.
+- Authentication uses a refined two-panel shell with clearer role rules, stronger field borders, premium focus states and restrained entrance motion.
+- The workspace shell uses quieter navigation, a stronger active state, semantic navigation glyphs and a reduced decorative signal treatment.
+- Dashboard cards use a clearer hierarchy and role-specific copy; HR receives people-operations actions distinct from Admin priorities.
+- Motion is brief and action-oriented, with reduced-motion overrides preserved.
+- Empty, success and error messages use the same surface language and animation treatment.
