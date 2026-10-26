@@ -1,7 +1,52 @@
 @import "tailwindcss";
 
-:root { --navy:#14213d; --ink:#17243e; --soft:#53627a; --teal:#0fa88f; --aqua:#2cb6c8; --violet:#6654d9; --amber:#f2a62b; --coral:#e85c56; --canvas:#f4f7fb; --panel:#fff; --line:#e3e9f2; --font:var(--font-geist-sans),system-ui,sans-serif; }
+:root { --navy:#14213d; --ink:#17243e; --soft:#53627a; --teal:#0fa88f; --aqua:#2cb6c8; --violet:#6654d9; --amber:#f2a62b; --coral:#e85c56; --canvas:#f4f7fb; --panel:#fff; --line:#e3e9f2; --font:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif; }
+.password-field { position:relative; display:grid; gap:7px; }
+.password-field input { padding-right:64px; }
+.password-toggle { position:absolute; right:8px; bottom:8px; padding:6px 8px; color:var(--navy); background:#eef3f9; border:1px solid var(--line); border-radius:6px; font-size:10px; font-weight:750; }
+.role-chooser { display:grid; gap:10px; }
+.role-option { display:grid; grid-template-columns:34px 1fr auto; align-items:center; gap:12px; width:100%; padding:14px; text-align:left; color:var(--navy); background:#fff; border:1px solid var(--line); border-radius:10px; }
+.role-option:hover,.role-option:focus-visible { border-color:var(--teal); box-shadow:0 5px 16px rgba(18,43,80,.1); outline:0; }
+.role-option small { display:block; margin-top:3px; color:var(--soft); font-size:10px; }
+.role-option-icon { display:grid; place-items:center; width:34px; height:34px; color:var(--teal); background:#e5f7f2; border-radius:9px; }
+.button-quiet { color:var(--navy); background:#eef3f9; border:1px solid var(--line); }
 * { box-sizing:border-box; }
+.content { width:100%; max-width:1440px; margin:0 auto; }
+.login-screen { position:relative; min-height:100vh; }
+.login-back-button { position:absolute; z-index:5; left:calc((100% - min(980px, 100% - 24px))/2 + 76px); top:calc((100vh - 620px)/2 + 575px); display:inline-flex; align-items:center; gap:8px; min-height:34px; padding:0 4px; color:var(--soft); background:transparent; border:0; font-size:12px; font-weight:700; }
+.login-back-button:hover { border-color:var(--teal); color:var(--teal); }
+.login-inline-back { justify-self:start; min-height:30px; padding:0; color:var(--soft); background:transparent; border:0; font-size:12px; }
+.login-inline-back:hover { color:var(--teal); }
+.grid-main,.stat-grid { min-width:0; }
+.panel,.stat-card,.hero-panel,.checklist { min-width:0; }
+@media (max-width:900px) {
+  .app-shell { grid-template-columns:220px minmax(0,1fr); }
+  .content { padding:28px 22px 42px; }
+  .grid-main { grid-template-columns:1fr; }
+  .stat-grid { grid-template-columns:repeat(3,minmax(0,1fr)); }
+}
+@media (max-width:650px) {
+  .login-back-button { position:absolute; top:auto; left:22px; bottom:18px; }
+  .auth-frame { padding:12px; }
+  .auth-card { grid-template-columns:1fr; min-height:auto; }
+  .auth-form { padding:32px 22px; }
+  .auth-aside { display:none; }
+  .app-shell { display:block; }
+  .sidebar { position:relative; width:100%; min-height:auto; padding:14px 12px; }
+  .sidebar nav { display:flex; gap:6px; overflow-x:auto; padding-bottom:4px; }
+  .nav-item { flex:0 0 auto; min-height:38px; padding:0 11px; white-space:nowrap; }
+  .sidebar .logout { position:absolute; right:12px; top:14px; width:auto; }
+  .topbar { padding:12px 16px; }
+  .topbar-actions .status-live { display:none; }
+  .content { padding:22px 14px 110px; }
+  .page-heading h1 { font-size:26px; }
+  .stat-grid { grid-template-columns:1fr; gap:10px; }
+  .panel { padding:16px; border-radius:12px; }
+  .module-stat-grid { grid-template-columns:1fr 1fr; }
+  .tool-dock { right:12px; bottom:12px; }
+  .tool-dock-items > * { max-width:calc(100vw - 24px); }
+  .tool-dock-items > .leave-widget .leave-popover,.tool-dock-items > .correction-widget .correction-popover,.tool-dock-items > .holiday-widget .holiday-popover,.tool-dock-items > .notification-widget .notification-popover,.tool-dock-items > .audit-widget .audit-popover,.tool-dock-items > .ai-widget .ai-popover,.tool-dock-items > .payroll-widget .payroll-popover,.tool-dock-items > .analytics-widget .analytics-popover { left:12px !important; right:12px !important; width:auto !important; max-width:none !important; }
+}
 html { min-height:100%; background:var(--canvas); }
 body { margin:0; min-height:100%; background:var(--canvas); color:var(--ink); font-family:var(--font); font-size:14px; }
 button,input { font:inherit; }

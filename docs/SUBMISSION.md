@@ -22,7 +22,7 @@ Configure `MONGODB_URI`, `MONGODB_DB_NAME`, `JWT_SECRET`, `CLIENT_ORIGIN`, `NEXT
 ## Verification commands
 
 ```bash
-npm ci
+npm ci --include=dev
 npm test
 npm run lint
 npm run build

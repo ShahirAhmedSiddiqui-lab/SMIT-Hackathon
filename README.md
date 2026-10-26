@@ -11,7 +11,9 @@ Nexora is a Next.js, Express, TypeScript and MongoDB human capital workspace for
 
 `dev:server` watches TypeScript and restarts Node when compiled files change. If you already have another API process on port 5000, stop that process before starting the new one; otherwise the browser can still hit old routes. The frontend API base URL is `NEXT_PUBLIC_API_URL`, which must point to the deployed API in hosted environments. `CLIENT_ORIGIN` must include the frontend origin.
 
-For deployment, build the frontend with `npm run build` and the API with `npm run build:server`. Start them with `npm run start` and `npm run start:server` respectively. The API build is emitted to the ignored `dist/server` directory; it is generated during deployment and is not committed.
+For deployment, build the frontend with `npm run build` and the API with `npm run build:server`. On Render, use `npm ci --include=dev && npm run build:server` because TypeScript and `@types/node` are development dependencies, then start with `npm run start:server`. The API build is emitted to the ignored `dist/server` directory; it is generated during deployment and is not committed.
+
+For a split deployment, deploy the API to Render first. Add the private MongoDB, JWT and Gemini variables to Render, with `NODE_ENV=production` and `CLIENT_ORIGIN` set to the Vercel frontend URL. Add only `NEXT_PUBLIC_API_URL` (set to the public Render API URL) to the Vercel project, then redeploy the frontend. Do not upload `.env` to GitHub or copy server secrets into Vercel.
 
 ## Checks
 

@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { Notification } from "../models/notification";
 import { requireAuth } from "../middleware/auth";
-import { NotFoundError } from "../utils/validation";
+import { NotFoundError, objectIdString } from "../utils/validation";
 
 export const notificationsRouter = Router();
 notificationsRouter.use(requireAuth);
@@ -13,7 +13,7 @@ notificationsRouter.get("/", async (request, response, next) => {
 });
 
 notificationsRouter.patch("/:id/read", async (request, response, next) => {
-  try { const record = await Notification.findOneAndUpdate({ _id: request.params.id, organizationId: request.auth!.organizationId, recipientUserId: request.auth!.userId }, { $set: { readAt: new Date() } }, { new: true }).lean(); if (!record) throw new NotFoundError("Notification not found"); return response.json({ data: { notification: payload(record) } }); } catch (error) { return next(error); }
+  try { const record = await Notification.findOneAndUpdate({ _id: objectIdString(request.params.id, "notificationId"), organizationId: request.auth!.organizationId, recipientUserId: request.auth!.userId }, { $set: { readAt: new Date() } }, { new: true }).lean(); if (!record) throw new NotFoundError("Notification not found"); return response.json({ data: { notification: payload(record) } }); } catch (error) { return next(error); }
 });
 
 notificationsRouter.post("/read-all", async (request, response, next) => {

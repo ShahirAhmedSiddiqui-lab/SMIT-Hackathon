@@ -5,7 +5,7 @@ import { Organization } from "../models/organization";
 import { AuditLog } from "../models/audit-log";
 import { requireAuth, requireRole } from "../middleware/auth";
 import { hashPassword } from "../utils/password";
-import { asRecord, ConflictError, emailString, passwordString, requiredString, ValidationError } from "../utils/validation";
+import { asRecord, ConflictError, emailString, objectIdString, passwordString, requiredString, ValidationError } from "../utils/validation";
 
 export const employeesRouter = Router();
 employeesRouter.use(requireAuth);
@@ -16,7 +16,7 @@ const employeePayload = (employee: Record<string, unknown>) => ({
   employmentType: employee.employmentType, joinDate: employee.joinDate, exitDate: employee.exitDate, basicSalary: employee.basicSalary, status: employee.status,
 });
 
-employeesRouter.post("/", requireRole("hr"), async (request, response, next) => {
+employeesRouter.post("/", requireRole("admin", "hr"), async (request, response, next) => {
   let userId: string | undefined;
   let employeeId: string | undefined;
   try {
@@ -80,7 +80,7 @@ employeesRouter.get("/", async (request, response, next) => {
 
 employeesRouter.get("/:id", async (request, response, next) => {
   try {
-    const employee = await Employee.findOne({ _id: request.params.id, organizationId: request.auth?.organizationId }).lean();
+    const employee = await Employee.findOne({ _id: objectIdString(request.params.id, "employeeId"), organizationId: request.auth?.organizationId }).lean();
     if (!employee) return response.status(404).json({ error: { code: "NOT_FOUND", message: "Employee not found" } });
     if (request.auth?.role === "employee" && String(employee.userId) !== request.auth.userId) return response.status(403).json({ error: { code: "FORBIDDEN", message: "You can only view your own employee profile" } });
     return response.json({ data: { employee: employeePayload(employee) } });
@@ -90,7 +90,7 @@ employeesRouter.get("/:id", async (request, response, next) => {
 employeesRouter.patch("/:id", async (request, response, next) => {
   try {
     const body = asRecord(request.body);
-    const employee = await Employee.findOne({ _id: request.params.id, organizationId: request.auth!.organizationId });
+    const employee = await Employee.findOne({ _id: objectIdString(request.params.id, "employeeId"), organizationId: request.auth!.organizationId });
     if (!employee) return response.status(404).json({ error: { code: "NOT_FOUND", message: "Employee not found" } });
     const role = request.auth!.role;
     if (role === "employee" && String(employee.userId) !== request.auth!.userId) return response.status(403).json({ error: { code: "FORBIDDEN", message: "You can only edit your own contact details" } });

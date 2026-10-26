@@ -10,18 +10,22 @@ The official scope and rules are in [BRIEF.md](BRIEF.md). This file records the 
 - Dashboard cards read live API data. Attendance board derives absent, leave and missing-checkout states. Analytics accepts a date and department and returns basic attendance rates.
 - `npm test`: 21 utility tests pass. `npm run lint`, `npm run build`, and `git diff --check` pass. Local frontend returned HTTP 200 and the pre-existing API process answered health with `ok`.
 - Deployment packaging is now reproducible: server output is generated in ignored `dist/server`, `npm run build:server` prepares it, and `npm run start:server` starts the compiled API without rebuilding at runtime. The generated `tmp` directory is removed from the workspace.
-- No live Admin -> HR -> Employee browser journey, dedicated test database run, live Gemini call, mobile-width visual check, or deployment verification was completed in this update. The existing API process on port 5000 answered health, but a fresh build started on port 5001 timed out connecting to MongoDB Atlas in this environment. The existing process may need restart to load the new server code.
+- Role-first chooser is now wired before setup/login, non-Admin setup is blocked in the UI, login sends the selected role, and the API rejects mismatches without issuing a token. Shared password-field styling is prepared; password visibility still needs to be applied to every existing password form.
+- Admin and HR can now create Employee accounts through the existing scoped employee endpoint; Admin-only user management remains protected. The login form uses the shared password field and the legacy login implementation is no longer used.
+- Backend error normalization now returns structured 400 responses for malformed Mongo identifiers and 409 responses for duplicate-key conflicts. High-volume attendance and leave inbox queries have compound indexes. The tool dock now performs one initial auth check and responds to auth events instead of polling its own session state.
+- Google Fonts are no longer fetched at build time; the app uses a system font stack. Responsive overrides now collapse workspace grids and keep tool panels within narrow viewports.
+- No live Admin -> HR -> Employee browser journey, dedicated test database run, live Gemini call, mobile-width visual check, or deployment verification was completed in this update. npm test (24 tests), npm run lint, npm run build:server, and npm run build pass.
 
 ## Official checklist status
 
 | # | Requirement | Current status |
 |---|---|---|
 | 01 | One-time company/Admin setup | Built; concurrent setup integration test needed |
-| 02 | Login/logout/password change/RBAC | Built; cross-role and token-revocation integration tests needed |
+| 02 | Login/logout/password change/RBAC | Role-first chooser and server-side selected-role rejection built; browser journey and token-revocation integration tests remain |
 | 03 | Hours, grace, weekends, coordinates/radius | API and Admin settings form built; live persistence check needed |
 | 04 | Departments, designations, leave types/quotas, holidays | Department/designation lists, annual/sick/casual quotas and holidays built; custom leave types and live persistence check remain |
 | 05 | HR creation, deactivate, reset | Built; live verification needed |
-| 06 | HR employee registration and scoped edits | Built; transaction and live role verification needed |
+| 06 | HR employee registration and scoped edits | Admin/HR creation and scoped edits built; transaction and live role verification needed |
 | 07 | Search/paging/Employee 360 | Search/paging and profile editor built; complete 360 view remains |
 | 08 | CSV dry run/import/export | Not built; brief wording is ambiguous about optional status |
 | 09 | HR/Employee check-in/out | Built for linked profiles; live verification needed |
@@ -33,7 +37,7 @@ The official scope and rules are in [BRIEF.md](BRIEF.md). This file records the 
 | 15 | Monthly payroll draft | Built; transactional creation and reconciliation need work |
 | 16 | Admin finalize/lock | Built; finalization concurrency and notification failure handling need work |
 | 17 | Own-only PDF payslip | Built with finalized-only employee access; download journey needs verification |
-| 18 | Role dashboards, KPIs, filters, trends | Live cards/basic date and department filters built; trends and full formulas remain |
+| 18 | Role dashboards, KPIs, filters, trends | Existing live cards are role-aware for Admin/HR/Employee; trends and full formulas remain |
 | 19 | Seven-tool AI chat | Built; live provider and tool-to-REST consistency checks remain |
 | 20 | Admin/HR AI summary | Built; strict 3-5 grounded bullet validation remains |
 | 21 | Smart leave draft and confirmation | Draft populates normal leave form; live provider journey remains |
@@ -44,7 +48,7 @@ The official scope and rules are in [BRIEF.md](BRIEF.md). This file records the 
 
 ## Next work in priority order
 
-1. Run isolated database and browser journeys for first setup, Admin -> HR -> Employee, temporary-password API denial, role isolation, check-in, leave approval, payroll finalization and own PDF. Test at desktop and 375px. Do not reset an existing database.
+1. Apply the shared password visibility control to setup, login, password change, HR creation, employee registration, and Admin reset; then run isolated browser journeys for first setup and Admin -> HR -> Employee at desktop and 375px.
 2. Make setup, leave approvals, payroll draft/finalize and their audit/notification writes transaction-safe; add integration tests for races and failures.
 3. Finish organization master data, Employee 360, attendance calendar, CSV if required, and all brief analytics formulas and trends.
 4. Verify Gemini live, add structured-output retry and strict policy Q&A, and reconcile AI tool results with REST/dashboard facts.

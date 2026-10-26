@@ -58,9 +58,13 @@ export const createApp = (): express.Express => {
 
   app.use((error: unknown, _request: express.Request, response: express.Response, next: express.NextFunction) => {
     void next;
-    const typedError = error as { statusCode?: number; code?: string; message?: string; fields?: Record<string, string> };
-    const status = typedError.statusCode ?? 500;
-    response.status(status).json({ error: { code: typedError.code ?? "INTERNAL_ERROR", message: status >= 500 ? "Something went wrong on the server" : typedError.message ?? "Request failed", ...(typedError.fields ? { fields: typedError.fields } : {}) } });
+    const typedError = error as { statusCode?: number; code?: string | number; name?: string; message?: string; fields?: Record<string, string> };
+    const isCastError = typedError.name === "CastError";
+    const isDuplicateError = typedError.code === 11000;
+    const status = typedError.statusCode ?? (isCastError ? 400 : isDuplicateError ? 409 : 500);
+    const code = isCastError ? "INVALID_ID" : isDuplicateError ? "CONFLICT" : typeof typedError.code === "string" ? typedError.code : "INTERNAL_ERROR";
+    const message = isCastError ? "A supplied identifier is invalid" : isDuplicateError ? "This record already exists" : status >= 500 ? "Something went wrong on the server" : typedError.message ?? "Request failed";
+    response.status(status).json({ error: { code, message, ...(typedError.fields ? { fields: typedError.fields } : {}) } });
   });
 
   return app;

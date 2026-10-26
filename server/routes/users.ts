@@ -5,7 +5,7 @@ import { Employee } from "../models/employee";
 import { Organization } from "../models/organization";
 import { AuditLog } from "../models/audit-log";
 import { hashPassword } from "../utils/password";
-import { asRecord, ConflictError, emailString, passwordString, requiredString, safeUser, ValidationError, NotFoundError } from "../utils/validation";
+import { asRecord, ConflictError, emailString, objectIdString, passwordString, requiredString, safeUser, ValidationError, NotFoundError } from "../utils/validation";
 
 export const usersRouter = Router(); usersRouter.use(requireAuth, requireRole("admin"));
 usersRouter.post("/hr", async (request, response, next) => { try { const body = asRecord(request.body); const name = requiredString(body, "name"); const email = emailString(body); const temporaryPassword = passwordString(body, "temporaryPassword"); if (await User.exists({ email })) throw new ConflictError("A user with this email already exists"); const user = await User.create({ organizationId: request.auth?.organizationId, name, email, passwordHash: await hashPassword(temporaryPassword), role: "hr", mustChangePassword: true }); return response.status(201).json({ data: { user: safeUser(user.toObject()) } }); } catch (error) { return next(error); } });
@@ -18,7 +18,7 @@ usersRouter.post("/hr/:id/profile", async (request, response, next) => {
   let employeeId: string | undefined;
   try {
     const body = asRecord(request.body);
-    const user = await User.findOne({ _id: request.params.id, organizationId: request.auth!.organizationId, role: "hr" });
+    const user = await User.findOne({ _id: objectIdString(request.params.id, "userId"), organizationId: request.auth!.organizationId, role: "hr" });
     if (!user) throw new NotFoundError("HR account not found");
     if (user.employeeId) throw new ConflictError("This HR account already has a staff profile");
     const employeeCode = requiredString(body, "employeeCode", 40).toUpperCase();
@@ -53,8 +53,9 @@ usersRouter.get("/", async (request, response, next) => {
 
 usersRouter.patch("/:id/deactivate", async (request, response, next) => {
   try {
-    if (request.params.id === request.auth!.userId) throw new ConflictError("You cannot deactivate your own account");
-    const user = await User.findOne({ _id: request.params.id, organizationId: request.auth!.organizationId });
+    const userId = objectIdString(request.params.id, "userId");
+    if (userId === request.auth!.userId) throw new ConflictError("You cannot deactivate your own account");
+    const user = await User.findOne({ _id: userId, organizationId: request.auth!.organizationId });
     if (!user) throw new NotFoundError("User not found");
     if (!user.active) throw new ConflictError("Account is already inactive");
     user.active = false; user.tokenVersion += 1; await user.save();
@@ -67,7 +68,7 @@ usersRouter.post("/:id/reset-password", async (request, response, next) => {
   try {
     const body = asRecord(request.body);
     const temporaryPassword = passwordString(body, "temporaryPassword");
-    const user = await User.findOne({ _id: request.params.id, organizationId: request.auth!.organizationId });
+    const user = await User.findOne({ _id: objectIdString(request.params.id, "userId"), organizationId: request.auth!.organizationId });
     if (!user) throw new NotFoundError("User not found");
     user.passwordHash = await hashPassword(temporaryPassword); user.mustChangePassword = true; user.tokenVersion += 1; await user.save();
     await AuditLog.create({ organizationId: user.organizationId, actorUserId: request.auth!.userId, action: "user.password_reset", entityType: "User", entityId: String(user._id), summary: `Temporary password issued for ${user.email}`, after: { mustChangePassword: true } });

@@ -10,7 +10,7 @@
     "build": "next build",
     "start": "next start",
     "start:server": "node dist/server/index.js",
-    "test": "npm run build:server && node --test dist/server/tests/leave-rules.test.js dist/server/tests/attendance-rules.test.js dist/server/tests/payroll-rules.test.js dist/server/tests/ai-tools.test.js",
+    "test": "npm run build:server && node --test dist/server/tests/leave-rules.test.js dist/server/tests/attendance-rules.test.js dist/server/tests/payroll-rules.test.js dist/server/tests/ai-tools.test.js dist/server/tests/auth-input.test.js",
     "lint": "eslint"
   },
   "dependencies": {

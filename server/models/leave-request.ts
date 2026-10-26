@@ -22,5 +22,6 @@ const leaveRequestSchema = new Schema(
 );
 
 leaveRequestSchema.index({ organizationId: 1, employeeId: 1, startDate: 1, endDate: 1 });
+leaveRequestSchema.index({ organizationId: 1, status: 1, createdAt: -1 });
 
 export const LeaveRequest = mongoose.models.LeaveRequest ?? mongoose.model("LeaveRequest", leaveRequestSchema);

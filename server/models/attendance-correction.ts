@@ -18,5 +18,6 @@ const attendanceCorrectionSchema = new Schema(
 );
 
 attendanceCorrectionSchema.index({ attendanceId: 1, status: 1 });
+attendanceCorrectionSchema.index({ organizationId: 1, status: 1, createdAt: -1 });
 
 export const AttendanceCorrection = mongoose.models.AttendanceCorrection ?? mongoose.model("AttendanceCorrection", attendanceCorrectionSchema);
