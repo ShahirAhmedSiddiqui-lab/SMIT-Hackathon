@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { AttendanceCalendar } from "./attendance-calendar";
+import { AiChat } from "./ai-chat";
+import { ProfilePage } from "./profile-page";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? (typeof window === "undefined" ? "http://localhost:5000" : `http://${window.location.hostname}:5000`);
 type User = { role: "admin" | "hr" | "employee" };
@@ -12,7 +14,8 @@ const endpointFor = (active: string, role: User["role"], date: string, departmen
 export function ModulePage({ token, user, active }: ModulePageProps) {
   const [data, setData] = useState<Record<string, unknown> | null>(null); const [filterDate, setFilterDate] = useState(""); const [filterDepartment, setFilterDepartment] = useState(""); const [error, setError] = useState(""); const [loading, setLoading] = useState(true);
   useEffect(() => { void Promise.resolve().then(async () => { const endpoint = endpointFor(active, user.role, filterDate, filterDepartment); if (!endpoint) { setLoading(false); return; } setLoading(true); setError(""); const response = await fetch(`${API_URL}${endpoint}`, { headers: { Authorization: `Bearer ${token}` } }); const payload = await response.json(); if (!response.ok) throw new Error(payload.error?.message ?? "This module is unavailable"); setData(payload.data); }).catch(err => setError(err instanceof Error ? err.message : "This module is unavailable")).finally(() => setLoading(false)); }, [active, token, user.role, filterDate, filterDepartment]);
-  if (active === "AI Assistant") return <section className="panel module-panel"><span className="empty-orb">✦</span><h2>Ask Nexora AI</h2><p>Use the Ask Nexora AI tool in the Workspace tools dock. It is connected to your signed-in workspace and keeps provider credentials on the server.</p></section>;
+  if (active === "AI Assistant") return <AiChat token={token} />;
+  if (active === "Profile") return <ProfilePage token={token} />;
   if (loading) return <section className="panel module-panel"><span className="loader" /><h2>Loading {active.toLowerCase()}…</h2></section>;
   if (error) return <section className="panel module-panel"><div className="form-error">{error}</div><h2>{active} needs attention</h2><p>Refresh the module after confirming the API server is running.</p></section>;
   if (active === "Attendance") { const records = Array.isArray(data?.records) ? data.records as Array<Record<string, unknown>> : []; const attendance = data?.attendance as Record<string, unknown> | null; return <><section className="panel module-panel"><div className="panel-title"><div><span className="panel-kicker">ATTENDANCE</span><h2>{user.role === "employee" ? "Today's attendance" : "Attendance board"}</h2></div><span className="status-pill">{user.role === "employee" ? String(attendance?.status ?? "Not started") : `${records.length} records`}</span></div>{user.role !== "employee" && <label>Board date<input type="date" value={filterDate} onChange={event => setFilterDate(event.target.value)} /></label>}{user.role === "employee" ? <div className="module-highlight"><strong>{String(attendance?.status ?? "Not started")}</strong><small>{attendance?.checkIn ? "Checked in today" : "Use the attendance tool to check in"}</small></div> : records.length ? <div className="module-list">{records.map(record => <div className="module-row" key={String(record.id)}><strong>{String((record.employee as Record<string, unknown> | null)?.name ?? "Employee")}</strong><span>{String(record.status)}</span></div>)}</div> : <p className="empty-copy">No attendance records for today.</p>}</section>{(user.role === "employee" || user.role === "hr") && <AttendanceCalendar token={token} />}</>; }

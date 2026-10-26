@@ -14,6 +14,8 @@ The official scope and rules are in [BRIEF.md](BRIEF.md). This file records the 
 - Admin and HR can now create Employee accounts through the existing scoped employee endpoint; Admin-only user management remains protected. The login form uses the shared password field and the legacy login implementation is no longer used.
 - Backend error normalization now returns structured 400 responses for malformed Mongo identifiers and 409 responses for duplicate-key conflicts. High-volume attendance and leave inbox queries have compound indexes. The tool dock now performs one initial auth check and responds to auth events instead of polling its own session state.
 - Google Fonts are no longer fetched at build time; the app uses a system font stack. Responsive overrides now collapse workspace grids and keep tool panels within narrow viewports.
+- Admin signup is now presented as the dedicated first-run workspace creation view, with Admin-only setup messaging and shared password visibility on setup, password change, employee creation, and Admin reset forms. The AI Assistant module now contains an authenticated embedded chat backed by `/api/ai/chat`. Opening a workspace tool collapses the dock list, and Escape closes active tool panels. Decorative signal/live dots are hidden while semantic badges remain available.
+- Added authenticated self-profile loading and updates at `/api/auth/profile`, limited to name, phone, and address; added a Profile workspace module with account and linked employee facts. Authentication now includes visible access rules, viewport-fit responsive behavior, and reduced-motion-safe entrance/panel animations.
 - No live Admin -> HR -> Employee browser journey, dedicated test database run, live Gemini call, mobile-width visual check, or deployment verification was completed in this update. npm test (24 tests), npm run lint, npm run build:server, and npm run build pass.
 
 ## Official checklist status
@@ -48,7 +50,7 @@ The official scope and rules are in [BRIEF.md](BRIEF.md). This file records the 
 
 ## Next work in priority order
 
-1. Apply the shared password visibility control to setup, login, password change, HR creation, employee registration, and Admin reset; then run isolated browser journeys for first setup and Admin -> HR -> Employee at desktop and 375px.
+1. Run isolated browser journeys for first setup and Admin -> HR -> Employee at desktop and 375px, including the password controls and embedded AI chat.
 2. Make setup, leave approvals, payroll draft/finalize and their audit/notification writes transaction-safe; add integration tests for races and failures.
 3. Finish organization master data, Employee 360, attendance calendar, CSV if required, and all brief analytics formulas and trends.
 4. Verify Gemini live, add structured-output retry and strict policy Q&A, and reconcile AI tool results with REST/dashboard facts.
